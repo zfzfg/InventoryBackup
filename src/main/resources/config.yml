@@ -1,0 +1,36 @@
+# InventoryBackup Configuration
+
+# How many days to keep inventory files before auto-deletion
+# Set to 0 to disable auto-deletion
+auto-delete-days: 30
+
+# Check interval for file cleanup (in hours)
+cleanup-interval-hours: 24
+
+# Save inventory on death
+save-on-death: true
+
+# Performance settings
+cache-cleanup-interval: 30 # seconds
+
+# Notification settings
+notify-on-backup: true
+notify-ops-only: true
+
+# Messages
+messages:
+  prefix: "&8[&6InvBackup&8]&r"
+  inventory-saved: "&aInventory saved for {player}!"
+  inventory-restored: "&aInventory restored for {player}!"
+  inventory-shown: "&aShowing inventory for {player}..."
+  inventory-level: "&6Player {player} had Level {level}"
+  missing-items-given: "&aGiven {count} missing items to {player}!"
+  backup-created: "&aBackup created for {player}!"
+  backup-all-created: "&aBackup created for {count} players!"
+  no-inventory-found: "&cNo inventory file found with that name!"
+  player-not-found: "&cPlayer not found!"
+  file-deleted: "&aOld inventory files cleaned up: {count} files deleted"
+  backup-deleted: "&aBackup deleted: {filename}"
+  all-backups-deleted: "&aDeleted {count} backups for {player}!"
+  invalid-usage: "&cUsage: /inv <player> <restore|show|givemissing|list|delete> <filename> OR /inv backup <all|player>"
+  no-permission: "&cYou don't have permission to use this command!"
