@@ -6,7 +6,7 @@ A Minecraft Spigot plugin that automatically saves player inventories on death a
 
 **Collin Lerche (zfzfg) | STERRA**  
 Website: https://sterra.online  
-Email: contact@sterra.online
+Email: zfzfg@sterra.online
 
 ## License
 
