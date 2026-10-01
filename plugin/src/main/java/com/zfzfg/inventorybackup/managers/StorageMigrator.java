@@ -87,9 +87,8 @@ public final class StorageMigrator {
                 "migrated", String.valueOf(report.moved().size()),
                 "skipped", String.valueOf(report.parked().size() + report.failed().size())));
 
-        // Marked done even when some folders were parked or failed: they are out
-        // of the way now, and re-running would not find anything new.
-        markDone();
+        // Parked folders are preserved for inspection; failed moves remain retryable.
+        if (report.failed().isEmpty()) markDone();
         return report.moved().size();
     }
 
@@ -171,10 +170,10 @@ public final class StorageMigrator {
                 File destination = new File(target, file.getName());
                 // Same file name in both folders means the same timestamp and
                 // type. Keep both by renaming rather than picking a winner.
-                for (int counter = 2; destination.exists() && counter < 1000; counter++) {
+                for (int counter = 2; destination.exists(); counter++) {
                     destination = new File(target, "merged-" + counter + "-" + file.getName());
                 }
-                Files.move(file.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                Files.move(file.toPath(), destination.toPath());
             }
         }
         source.delete();

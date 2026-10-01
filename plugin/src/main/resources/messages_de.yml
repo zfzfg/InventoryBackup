@@ -15,6 +15,11 @@
 # ============================================================
 
 messages:
+  pending-failed: "Ausstehende Wiederherstellung {file} ist angehalten: {error}. Auftrag abbrechen oder korrigiertes Backup vormerken."
+  operation-failed: "Vorgang fehlgeschlagen. Details stehen im Serverlog."
+  restore-invalid: "Backup ist beschädigt oder unvollständig; Inventar wurde nicht verändert."
+  restore-incompatible: "Backup stammt aus einer neueren Minecraft-Version."
+  restore-space: "Nicht genug Inventarplatz; Inventar wurde nicht verändert."
   prefix: "&8[&6InvBackup&8]&r"
 
   # --- Backup und Wiederherstellung -------------------------

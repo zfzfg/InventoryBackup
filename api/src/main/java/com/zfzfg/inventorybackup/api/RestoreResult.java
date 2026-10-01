@@ -21,6 +21,9 @@ public enum RestoreResult {
     CANCELLED,
 
     /** Something went wrong; details are in the server log. */
+    INVALID_BACKUP,
+    INCOMPATIBLE_VERSION,
+    INSUFFICIENT_SPACE,
     FAILED;
 
     /** True for {@link #APPLIED} and {@link #QUEUED_FOR_JOIN}. */

@@ -1,0 +1,5 @@
+name: InventoryBackupServerTests
+version: '1'
+main: com.zfzfg.inventorybackup.testing.ServerTests
+api-version: '1.21.8'
+depend: [InventoryBackup]

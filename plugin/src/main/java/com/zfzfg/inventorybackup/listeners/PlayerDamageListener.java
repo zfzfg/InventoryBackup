@@ -40,8 +40,8 @@ public class PlayerDamageListener implements Listener {
     }
     
     private void cacheInventory(Player player) {
-        ItemStack[] inventory = player.getInventory().getContents().clone();
-        ItemStack[] armor = player.getInventory().getArmorContents().clone();
+        ItemStack[] inventory = copy(player.getInventory().getStorageContents());
+        ItemStack[] armor = copy(player.getInventory().getArmorContents());
         ItemStack offhand = player.getInventory().getItemInOffHand() == null ? null : player.getInventory().getItemInOffHand().clone();
         int level = player.getLevel();
         float exp = player.getExp();
@@ -50,6 +50,11 @@ public class PlayerDamageListener implements Listener {
             new CachedInventory(inventory, armor, offhand, level, exp, System.currentTimeMillis()));
     }
     
+    private static ItemStack[] copy(ItemStack[] items) {
+        ItemStack[] result = new ItemStack[items.length];
+        for (int i = 0; i < items.length; i++) result[i] = items[i] == null ? null : items[i].clone();
+        return result;
+    }
     public CachedInventory getCachedInventory(UUID playerId) {
         return inventoryCache.get(playerId);
     }

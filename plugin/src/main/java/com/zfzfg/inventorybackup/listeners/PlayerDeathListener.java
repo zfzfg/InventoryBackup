@@ -26,18 +26,14 @@ public class PlayerDeathListener implements Listener {
 
         Player player = event.getEntity();
 
-        // The inventory is already gone by the time death fires, so what gets
-        // stored is the snapshot PlayerDamageListener took just before the
-        // killing blow.
-        PlayerDamageListener.CachedInventory cached =
-            plugin.getDamageListener().getCachedInventory(player.getUniqueId());
-
-        if (cached == null) {
-            return;
-        }
-
-        BackupSnapshot snapshot = new BackupSnapshot(null,
-                cached.inventory, cached.armor, cached.offhand, cached.level, cached.exp);
+        BackupSnapshot snapshot = BackupSnapshot.of(player);
+        // A fresh pre-damage snapshot is a fallback only if another plugin has already cleared the inventory.
+        PlayerDamageListener.CachedInventory cached = plugin.getDamageListener().getCachedInventory(player.getUniqueId());
+        boolean empty = java.util.Arrays.stream(snapshot.contents()).allMatch(item -> item == null || item.getType().isAir())
+                && java.util.Arrays.stream(snapshot.armor()).allMatch(item -> item == null || item.getType().isAir())
+                && (snapshot.offhand() == null || snapshot.offhand().getType().isAir());
+        if (empty && cached != null && System.currentTimeMillis() - cached.timestamp <= 1000)
+            snapshot = new BackupSnapshot(null, cached.inventory, cached.armor, cached.offhand, cached.level, cached.exp);
 
         // Routed through the API service rather than straight to the manager, so
         // a death backup fires the same BackupCreateEvent a plugin-made one does
@@ -46,12 +42,14 @@ public class PlayerDeathListener implements Listener {
                 .createBackup(player.getUniqueId(), player.getName(), snapshot,
                         BackupRequest.of(BackupType.DEATH, plugin))
                 .thenAccept(handle -> {
-                    if (handle.isPresent() && player.isOnline()
+                    if (plugin.getConfig().getBoolean("notify-on-backup", true)
+                            && (!plugin.getConfig().getBoolean("notify-ops-only", true) || player.isOp())
+                            && handle.isPresent() && player.isOnline()
                             && player.hasPermission("inventorybackup.notify")) {
                         player.sendMessage(plugin.getMessage("inventory-saved",
                                 "player", player.getName()));
                     }
-                });
+                }).exceptionally(error -> { plugin.getLogger().log(java.util.logging.Level.SEVERE, "Death backup failed", error); return null; });
 
         plugin.getDamageListener().removeCachedInventory(player.getUniqueId());
     }

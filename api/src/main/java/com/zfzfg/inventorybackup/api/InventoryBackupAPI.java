@@ -20,8 +20,9 @@ import java.util.concurrent.CompletableFuture;
  * }</pre>
  *
  * <h2>Threading</h2>
- * Every {@link CompletableFuture} returned here <b>completes on the server's
- * main thread</b>. You may call Bukkit methods directly inside
+ * Successful asynchronous operations <b>complete on the server's
+ * main thread</b>. Failures may complete on any thread. Late callbacks must explicitly
+ * dispatch Bukkit access to the main thread. You may call Bukkit methods directly inside
  * {@code thenAccept} / {@code thenRun} without hopping schedulers yourself. The
  * file I/O behind each call runs off the main thread, so none of these methods
  * block the server - but do not {@code join()} or {@code get()} them from the
@@ -35,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 public interface InventoryBackupAPI {
 
     /** API revision this interface describes. Bumped on every addition. */
-    int API_VERSION = 1;
+    int API_VERSION = 2;
 
     /**
      * The API revision the running plugin implements. Compare against

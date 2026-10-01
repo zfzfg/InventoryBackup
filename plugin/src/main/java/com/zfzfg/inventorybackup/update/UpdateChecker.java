@@ -41,6 +41,12 @@ public final class UpdateChecker {
     private final String contact;
     private final boolean stableOnly;
 
+    private volatile boolean closed;
+    private boolean inFlight;
+    private final List<Callback> callbacks = new ArrayList<>();
+    private final String minecraftVersion;
+    private static final long CACHE_MS = 10 * 60 * 1000L;
+    public synchronized void close() { closed = true; callbacks.clear(); }
     private volatile String latestVersion;
     private volatile boolean updateAvailable;
     private volatile boolean checked;
@@ -54,6 +60,7 @@ public final class UpdateChecker {
      */
     public UpdateChecker(InventoryBackup plugin, String projectId, String contact, boolean stableOnly) {
         this.plugin = plugin;
+        this.minecraftVersion = Bukkit.getMinecraftVersion();
         this.projectId = projectId;
         this.contact = contact;
         this.stableOnly = stableOnly;
@@ -72,25 +79,32 @@ public final class UpdateChecker {
      *                   damit onEnable nicht mit Netzwerk-IO konkurriert)
      * @param callback   darf null sein
      */
-    public void check(long delayTicks, Callback callback) {
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            try {
-                performCheck();
-            } catch (Exception e) {
-                // Ein Update-Check ist Komfort, keine Kernfunktion:
-                // er darf niemals das Plugin stoeren.
-                plugin.getLogger().log(Level.WARNING,
-                        plugin.getLanguageManager().getConsoleMsg(
-                                "update-check-failed", "error", String.valueOf(e.getMessage())), e);
-            } finally {
-                // Rueckmeldung IMMER -- auch nach einem Fehler. Sonst wartet der
-                // Aufrufer ewig. Und immer im Main-Thread: die Bukkit-API ist
-                // nicht thread-sicher.
-                if (callback != null && plugin.isEnabled()) {
-                    Bukkit.getScheduler().runTask(plugin, () -> callback.finished(this));
-                }
-            }
-        }, Math.max(0L, delayTicks));
+    public synchronized void check(long delayTicks, Callback callback) {
+        if (closed || !plugin.isEnabled() || !plugin.getConfig().getBoolean("update-check.enabled", true)) return;
+        if (checked && System.currentTimeMillis() - lastCheckTime < CACHE_MS) {
+            if (callback != null) Bukkit.getScheduler().runTask(plugin, () -> { if (!closed) callback.finished(this); });
+            return;
+        }
+        if (callback != null) callbacks.add(callback);
+        if (inFlight) return;
+        inFlight = true;
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (closed) return;
+            plugin.getApiService().background(() -> {
+                try { performCheck(); }
+                catch (Exception error) { plugin.getLogger().log(Level.WARNING, "Update check failed", error); }
+                return true;
+            }).whenComplete((value, error) -> {
+                List<Callback> ready;
+                synchronized (this) { inFlight = false; ready = new ArrayList<>(callbacks); callbacks.clear(); }
+                if (!closed && plugin.isEnabled()) plugin.getApiService().mainCall(() -> {
+                    if (!closed) for (Callback cb : ready) {
+                        try { cb.finished(this); } catch (RuntimeException failure) { plugin.getLogger().log(Level.WARNING, "Update callback failed", failure); }
+                    }
+                    return true;
+                });
+            });
+        }, Math.max(0, delayTicks));
     }
 
     /** true nur, wenn wirklich geprueft wurde UND eine neuere Version existiert. */
@@ -125,11 +139,13 @@ public final class UpdateChecker {
                 return;
             }
 
+            checked = false;
             StringBuilder body = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    if (body.length() + line.length() > 2 * 1024 * 1024) throw new java.io.IOException("Update response exceeds limit");
                     body.append(line);
                 }
             }
@@ -140,6 +156,9 @@ public final class UpdateChecker {
             String highest = null;
             for (JsonElement element : versions) {
                 JsonObject version = element.getAsJsonObject();
+                if (!version.has("game_versions") || !contains(version.getAsJsonArray("game_versions"), minecraftVersion)) continue;
+                if (!version.has("loaders") || !(contains(version.getAsJsonArray("loaders"), "purpur")
+                        || contains(version.getAsJsonArray("loaders"), "paper") || contains(version.getAsJsonArray("loaders"), "spigot"))) continue;
                 if (stableOnly && version.has("version_type")
                         && !"release".equals(version.get("version_type").getAsString())) {
                     continue;
@@ -156,6 +175,7 @@ public final class UpdateChecker {
                 return;
             }
 
+            if (closed) return;
             latestVersion = highest;
             updateAvailable = isNewer(currentVersion, highest);
             checked = true;
@@ -171,6 +191,11 @@ public final class UpdateChecker {
         } finally {
             connection.disconnect();
         }
+    }
+
+    private static boolean contains(JsonArray values, String wanted) {
+        for (JsonElement value : values) if (wanted.equals(value.getAsString())) return true;
+        return false;
     }
 
     /** true, wenn {@code candidate} neuer ist als {@code current}. */

@@ -49,6 +49,24 @@ public final class InventoryBackupService implements InventoryBackupAPI {
     private final InventoryManager inventories;
     private final PlayerIndex index;
     private final PendingRestoreStore pending;
+    private final java.util.concurrent.ThreadPoolExecutor executor = new java.util.concurrent.ThreadPoolExecutor(
+            2, 2, 0L, java.util.concurrent.TimeUnit.MILLISECONDS, new java.util.concurrent.ArrayBlockingQueue<>(1024),
+            runnable -> { Thread thread = new Thread(runnable, "InventoryBackup-IO"); thread.setDaemon(true); return thread; },
+            new java.util.concurrent.ThreadPoolExecutor.AbortPolicy());
+    private final java.util.Set<CompletableFuture<?>> outstanding = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private volatile boolean closing;
+    public <T> CompletableFuture<T> mainCall(Supplier<T> work) { return onMain(work); }
+    public <T> CompletableFuture<T> background(Supplier<T> work) { return io(work); }
+    public void shutdown() {
+        closing = true;
+        outstanding.forEach(future -> future.completeExceptionally(new IllegalStateException("InventoryBackup is shutting down")));
+        executor.shutdown();
+        try { if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) executor.shutdownNow(); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); executor.shutdownNow(); }
+    }
+    private <T> CompletableFuture<T> track(CompletableFuture<T> future) {
+        outstanding.add(future); future.whenComplete((value, error) -> outstanding.remove(future)); return future;
+    }
 
     public InventoryBackupService(InventoryBackup plugin, InventoryManager inventories,
                                   PlayerIndex index, PendingRestoreStore pending) {
@@ -102,10 +120,10 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             return io(() -> {
                 index.remember(ownerId, name);
                 return inventories.writeBackup(ownerId, name, snapshot, effective);
-            }).thenApply(handle -> {
+            }).thenCompose(handle -> onMain(() -> {
                 handle.ifPresent(h -> Bukkit.getPluginManager().callEvent(new BackupCreatedEvent(h)));
                 return handle;
-            });
+            }));
         });
     }
 
@@ -160,17 +178,23 @@ public final class InventoryBackupService implements InventoryBackupAPI {
         RestoreOptions effective = options == null ? RestoreOptions.all() : options;
 
         return io(() -> inventories.readBackup(handle.ownerId(), handle.id()))
-                .thenApply(snapshot -> {
+                .thenCompose(snapshot -> onMain(() -> {
                     if (!snapshot.isPresent()) {
                         return RestoreResult.NOT_FOUND;
                     }
                     Player player = Bukkit.getPlayer(targetId);
                     if (player == null) {
                         // Offline: park it rather than dropping it on the floor.
-                        queue(targetId, handle, effective, null);
                         return RestoreResult.QUEUED_FOR_JOIN;
                     }
                     return applyNow(player, snapshot.get(), effective);
+                })).thenCompose(result -> result == RestoreResult.QUEUED_FOR_JOIN
+                        ? queueRestoreOnJoin(targetId, handle, effective).thenApply(saved -> RestoreResult.QUEUED_FOR_JOIN)
+                        : CompletableFuture.completedFuture(result)).exceptionally(error -> {
+                    Throwable cause = error;
+                    while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null) cause = cause.getCause();
+                    if (cause instanceof InventoryManager.BackupReadException failure) return failure.result;
+                    throw new java.util.concurrent.CompletionException(cause);
                 });
     }
 
@@ -190,6 +214,10 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             return RestoreResult.CANCELLED;
         }
 
+        try { InventoryManager.validateSnapshot(event.getSnapshot()); }
+        catch (IllegalArgumentException error) { return RestoreResult.INVALID_BACKUP; }
+        if (event.getOptions() == null) return RestoreResult.FAILED;
+        if (!inventories.hasSpace(player, event.getSnapshot(), event.getOptions())) return RestoreResult.INSUFFICIENT_SPACE;
         if (!inventories.applySnapshot(player, event.getSnapshot(), event.getOptions())) {
             return RestoreResult.FAILED;
         }
@@ -206,13 +234,13 @@ public final class InventoryBackupService implements InventoryBackupAPI {
         }
 
         return io(() -> inventories.readBackup(handle.ownerId(), handle.id()))
-                .thenApply(snapshot -> {
+                .thenCompose(snapshot -> onMain(() -> {
                     Player player = Bukkit.getPlayer(targetId);
                     if (!snapshot.isPresent() || player == null) {
                         return -1;
                     }
                     return inventories.applyMissingItems(player, snapshot.get());
-                });
+                }));
     }
 
     // -------------------------------------------------------- offline queue
@@ -222,8 +250,10 @@ public final class InventoryBackupService implements InventoryBackupAPI {
         if (targetId == null || handle == null) {
             return failed(new IllegalArgumentException("targetId and handle must not be null"));
         }
-        queue(targetId, handle, options == null ? RestoreOptions.all() : options, null);
-        return io(() -> Boolean.TRUE);
+        return io(() -> {
+            inventories.queueRestore(targetId, handle, options == null ? RestoreOptions.all() : options, null);
+            return Boolean.TRUE;
+        });
     }
 
     /**
@@ -234,10 +264,10 @@ public final class InventoryBackupService implements InventoryBackupAPI {
      * next flush.
      */
     public void queue(UUID targetId, BackupHandle handle, RestoreOptions options, String sourcePlugin) {
-        pending.put(targetId, handle.ownerId(), handle.id(), options, sourcePlugin);
-        if (plugin.isEnabled()) {
-            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, pending::saveIfDirty);
-        }
+        io(() -> {
+            inventories.queueRestore(targetId, handle, options, sourcePlugin);
+            return Boolean.TRUE;
+        }).exceptionally(error -> { plugin.getLogger().log(java.util.logging.Level.SEVERE, "Cannot persist pending restore", error); return false; });
     }
 
     @Override
@@ -279,13 +309,13 @@ public final class InventoryBackupService implements InventoryBackupAPI {
         if (handle == null) {
             return failed(new IllegalArgumentException("handle must not be null"));
         }
-        return io(() -> inventories.deleteBackup(handle.ownerId(), handle.id()))
-                .thenApply(deleted -> {
+        return io(() -> { boolean deleted = inventories.deleteBackup(handle.ownerId(), handle.id()); pending.saveIfDirty(); return deleted; })
+                .thenCompose(deleted -> onMain(() -> {
                     if (deleted) {
                         Bukkit.getPluginManager().callEvent(new BackupDeletedEvent(handle, reason));
                     }
                     return deleted;
-                });
+                }));
     }
 
     @Override
@@ -298,11 +328,11 @@ public final class InventoryBackupService implements InventoryBackupAPI {
         if (ownerId == null) {
             return failed(new IllegalArgumentException("ownerId must not be null"));
         }
-        return io(() -> inventories.deleteBackups(ownerId, type))
-                .thenApply(deleted -> {
+        return io(() -> { List<BackupHandle> deleted = inventories.deleteBackups(ownerId, type); pending.saveIfDirty(); return deleted; })
+                .thenCompose(deleted -> onMain(() -> {
                     fireDeleted(deleted, reason);
                     return deleted.size();
-                });
+                }));
     }
 
     /** Fires {@code BackupDeletedEvent} for a batch. <b>Main thread only.</b> */
@@ -320,9 +350,9 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             return false;
         }
 
-        loadBackup(handle).thenAccept(snapshot -> {
+        loadBackup(handle).thenCompose(snapshot -> onMain(() -> {
             if (!snapshot.isPresent() || !viewer.isOnline()) {
-                return;
+                return false;
             }
             String title = plugin.getLanguageManager().getInventoryTitle("gui-title",
                     "player", displayName(handle));
@@ -330,7 +360,8 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             viewer.sendMessage(plugin.getMessage("inventory-level",
                     "player", displayName(handle),
                     "level", String.valueOf(snapshot.get().level())));
-        });
+            return true;
+        })).exceptionally(error -> { plugin.getLogger().log(java.util.logging.Level.WARNING, "Cannot open backup preview", error); return false; });
 
         return true;
     }
@@ -341,7 +372,7 @@ public final class InventoryBackupService implements InventoryBackupAPI {
 
     @Override
     public CompletableFuture<Optional<UUID>> resolvePlayerId(String name) {
-        return CompletableFuture.completedFuture(resolveNow(name));
+        return onMain(() -> resolveNow(name));
     }
 
     /** Synchronous name lookup for the plugin's own commands. */
@@ -356,7 +387,7 @@ public final class InventoryBackupService implements InventoryBackupAPI {
 
     @Override
     public CompletableFuture<Optional<String>> resolvePlayerName(UUID playerId) {
-        return CompletableFuture.completedFuture(index.nameOf(playerId));
+        return onMain(() -> index.nameOf(playerId));
     }
 
     // -------------------------------------------------------------- plumbing
@@ -366,14 +397,15 @@ public final class InventoryBackupService implements InventoryBackupAPI {
      * the main thread.
      */
     private <T> CompletableFuture<T> io(Supplier<T> work) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+        CompletableFuture<T> future = track(new CompletableFuture<>());
 
-        if (!plugin.isEnabled()) {
+        if (closing || !plugin.isEnabled()) {
             future.completeExceptionally(new IllegalStateException("InventoryBackup is disabled"));
             return future;
         }
 
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        try { executor.execute(() -> {
+            if (closing) { future.completeExceptionally(new IllegalStateException("InventoryBackup is shutting down")); return; }
             T value = null;
             Throwable error = null;
             try {
@@ -382,13 +414,14 @@ public final class InventoryBackupService implements InventoryBackupAPI {
                 error = t;
             }
             completeOnMain(future, value, error);
-        });
+        }); } catch (java.util.concurrent.RejectedExecutionException error) { future.completeExceptionally(error); }
 
         return future;
     }
 
     /** Runs work on the main thread, completing the future there. */
     private <T> CompletableFuture<T> onMain(Supplier<T> work) {
+        if (closing || !plugin.isEnabled()) return failed(new IllegalStateException("InventoryBackup is disabled"));
         if (Bukkit.isPrimaryThread()) {
             try {
                 return CompletableFuture.completedFuture(work.get());
@@ -397,24 +430,26 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             }
         }
 
-        CompletableFuture<T> future = new CompletableFuture<>();
-        if (!plugin.isEnabled()) {
+        CompletableFuture<T> future = track(new CompletableFuture<>());
+        if (closing || !plugin.isEnabled()) {
             future.completeExceptionally(new IllegalStateException("InventoryBackup is disabled"));
             return future;
         }
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
+        try { plugin.getServer().getScheduler().runTask(plugin, () -> {
             try {
+                if (closing || !plugin.isEnabled()) throw new IllegalStateException("InventoryBackup is disabled");
                 future.complete(work.get());
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }
-        });
+        }); } catch (RuntimeException error) { future.completeExceptionally(error); }
         return future;
     }
 
     private <T> void completeOnMain(CompletableFuture<T> future, T value, Throwable error) {
         Runnable complete = () -> {
+            if (closing || !plugin.isEnabled()) { future.completeExceptionally(new IllegalStateException("InventoryBackup is disabled")); return; }
             if (error != null) {
                 future.completeExceptionally(error);
             } else {
@@ -427,7 +462,7 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             return;
         }
 
-        if (!plugin.isEnabled()) {
+        if (closing || !plugin.isEnabled()) {
             // Shutting down, so there is no main thread left to hop to.
             // Fail rather than complete: a dependent stage would otherwise run
             // off-thread and start touching Bukkit during disable.
@@ -436,11 +471,12 @@ public final class InventoryBackupService implements InventoryBackupAPI {
             return;
         }
 
-        plugin.getServer().getScheduler().runTask(plugin, complete);
+        try { plugin.getServer().getScheduler().runTask(plugin, complete); }
+        catch (RuntimeException failure) { future.completeExceptionally(failure); }
     }
 
-    private static <T> CompletableFuture<T> failed(Throwable error) {
-        CompletableFuture<T> future = new CompletableFuture<>();
+    private <T> CompletableFuture<T> failed(Throwable error) {
+        CompletableFuture<T> future = track(new CompletableFuture<>());
         future.completeExceptionally(error);
         return future;
     }

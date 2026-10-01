@@ -15,6 +15,11 @@
 # ============================================================
 
 messages:
+  pending-failed: "Pending restore {file} is paused: {error}. Cancel it or queue a corrected backup."
+  operation-failed: "Operation failed. See the server log for details."
+  restore-invalid: "Backup is damaged or incomplete; inventory was not changed."
+  restore-incompatible: "Backup comes from a newer Minecraft version."
+  restore-space: "Not enough inventory space; inventory was not changed."
   prefix: "&8[&6InvBackup&8]&r"
 
   # --- Backup and restore -----------------------------------

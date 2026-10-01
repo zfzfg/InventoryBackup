@@ -1,0 +1,42 @@
+name: Verify
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21', cache: maven}
+      - run: mvn -B -ntp clean verify
+      - run: python tests/check_package.py
+      - uses: actions/upload-artifact@v4
+        with: {name: InventoryBackup, path: plugin/target/InventoryBackup-0.2.0.jar}
+  server:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {minecraft: '1.21.8', java: '21'}
+          - {minecraft: '1.21.9', java: '21'}
+          - {minecraft: '1.21.10', java: '21'}
+          - {minecraft: '1.21.11', java: '21'}
+          - {minecraft: '26.1.2', java: '25'}
+          - {minecraft: '26.2', java: '25'}
+          - {minecraft: '26.3', java: '25'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '${{ matrix.java }}'
+          cache: maven
+      - run: mvn -B -ntp clean package -Pserver-tests
+      - run: python tests/run_servers.py --versions 1.21.8 '${{ matrix.minecraft }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-${{ matrix.minecraft }}
+          path: |
+            target/server-tests/**/results.json
+            target/server-tests/**/console.log

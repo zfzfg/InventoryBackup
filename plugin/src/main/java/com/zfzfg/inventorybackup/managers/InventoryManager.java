@@ -71,11 +71,12 @@ public class InventoryManager {
             DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
     private final InventoryBackup plugin;
-    private final ConcurrentHashMap<UUID, ReentrantLock> playerLocks;
+    private final ReentrantLock[] playerLocks = new ReentrantLock[256];
+    private final Map<UUID, List<String>> fileNames = new ConcurrentHashMap<>();
 
     public InventoryManager(InventoryBackup plugin) {
         this.plugin = plugin;
-        this.playerLocks = new ConcurrentHashMap<>();
+        for (int i = 0; i < playerLocks.length; i++) playerLocks[i] = new ReentrantLock();
     }
 
     // ------------------------------------------------------------- storage
@@ -87,18 +88,22 @@ public class InventoryManager {
      * @param ownerName last known name of that player, stored for display only
      * @param snapshot  the items, level and experience to store
      * @param request   type, source plugin and metadata
-     * @return a handle for the new file, or empty if writing failed
+     * @return a handle for the new file, or empty if cancelled; storage failures throw
      */
     public Optional<BackupHandle> writeBackup(UUID owner, String ownerName,
                                               BackupSnapshot snapshot, BackupRequest request) {
-        ReentrantLock lock = playerLocks.computeIfAbsent(owner, k -> new ReentrantLock());
+        ReentrantLock lock = lockFor(owner);
         lock.lock();
         try {
             File playerFolder = playerFolder(owner);
+            try {
+                if (!playerFolder.getCanonicalFile().toPath().startsWith(inventoriesFolder().getCanonicalFile().toPath()))
+                    throw new IllegalArgumentException("Unsafe player directory");
+            } catch (IOException error) { throw new java.io.UncheckedIOException(error); }
             if (!playerFolder.exists() && !playerFolder.mkdirs()) {
                 plugin.getLogger().severe(plugin.getLanguageManager().getConsoleMsg("save-failed",
                         "player", String.valueOf(ownerName), "error", "could not create " + playerFolder));
-                return Optional.empty();
+                throw new IllegalStateException("Could not create backup directory");
             }
 
             String type = BackupType.normalize(request.type());
@@ -123,20 +128,30 @@ public class InventoryManager {
                 }
             }
 
-            config.set("inventory", InventorySerializer.serializeInventory(snapshot.contents()));
-            config.set("armor", InventorySerializer.serializeInventory(snapshot.armor()));
-            config.set("offhand", InventorySerializer.serializeItemStack(snapshot.offhand()));
+            String[] encoded = main(() -> {
+                validateSnapshot(snapshot);
+                return new String[] { InventorySerializer.serializeInventory(snapshot.contents()),
+                        InventorySerializer.serializeInventory(snapshot.armor()),
+                        InventorySerializer.serializeItemStack(snapshot.offhand()),
+                        String.valueOf(org.bukkit.Bukkit.getUnsafe().getDataVersion()) };
+            });
+            config.set("format-version", 3);
+            config.set("data-version", Integer.parseInt(encoded[3]));
+            config.set("inventory", encoded[0]);
+            config.set("armor", encoded[1]);
+            config.set("offhand", encoded[2]);
             config.set("level", snapshot.level());
             config.set("exp", snapshot.exp());
 
             try {
-                config.save(file);
+                com.zfzfg.inventorybackup.utils.AtomicFiles.write(file.toPath(), config.saveToString());
             } catch (IOException e) {
                 plugin.getLogger().severe(plugin.getLanguageManager().getConsoleMsg("save-failed",
                         "player", String.valueOf(ownerName), "error", String.valueOf(e.getMessage())));
-                return Optional.empty();
+                throw new java.io.UncheckedIOException(e);
             }
 
+            refreshFileNames(owner);
             return Optional.of(new BackupHandle(file.getName(), owner, ownerName,
                     Instant.ofEpochMilli(timestamp), type, request.sourcePlugin(), request.metadata()));
         } finally {
@@ -147,10 +162,8 @@ public class InventoryManager {
     /**
      * Reads a backup's items. Blocking; call off the main thread.
      *
-     * <p>Returns empty when the file is missing <i>or</i> when its contents
-     * cannot be decoded. That second case matters: a failed decode yields an
-     * empty item array, and handing that back as a valid snapshot would wipe the
-     * inventory of whoever it gets applied to.
+     * <p>Returns empty only when the file is absent. Invalid or incompatible contents
+     * throw a typed failure before any live inventory can be changed.
      */
     public Optional<BackupSnapshot> readBackup(UUID owner, String fileName) {
         File file = getInventoryFile(owner, fileName);
@@ -158,22 +171,45 @@ public class InventoryManager {
             return Optional.empty();
         }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        BackupHandle handle = toHandle(owner, file.getName(), config);
-
-        String rawInventory = config.getString("inventory", "");
-        ItemStack[] contents = InventorySerializer.deserializeInventory(rawInventory);
-        if (contents.length == 0 && !rawInventory.isEmpty()) {
-            plugin.getLogger().severe(plugin.getLanguageManager().getConsoleMsg(
-                    "backup-unreadable", "file", file.getName(), "player", handle.ownerName()));
-            return Optional.empty();
-        }
-
-        ItemStack[] armor = InventorySerializer.deserializeInventory(config.getString("armor", ""));
-        ItemStack offhand = InventorySerializer.deserializeItemStack(config.getString("offhand", ""));
-
-        return Optional.of(new BackupSnapshot(handle, contents, armor, offhand,
-                config.getInt("level", 0), (float) config.getDouble("exp", 0.0)));
+        ReentrantLock lock = lockFor(owner); lock.lock();
+        try {
+            if (java.nio.file.Files.size(file.toPath()) > InventorySerializer.MAX_BYTES * 4L)
+                throw new IllegalArgumentException("Backup exceeds size limit");
+            YamlConfiguration config = new YamlConfiguration();
+            config.load(file);
+            BackupHandle handle = toHandle(owner, file.getName(), config);
+            return Optional.of(main(() -> {
+                int format = config.getInt("format-version", 1);
+                if (format != 1 && format != 3) throw new IllegalArgumentException("Unknown backup format");
+                for (String key : List.of("inventory", "armor", "offhand", "level", "exp", "uuid", "timestamp"))
+                    if (!config.contains(key)) throw new IllegalArgumentException("Missing field: " + key);
+                for (String key : List.of("inventory", "armor", "offhand", "uuid"))
+                    if (!config.isString(key)) throw new IllegalArgumentException("Invalid field type: " + key);
+                if (!(config.get("timestamp") instanceof Number) || config.getLong("timestamp") <= 0)
+                    throw new IllegalArgumentException("Invalid timestamp");
+                if (!owner.toString().equals(config.getString("uuid"))) throw new IllegalArgumentException("Owner mismatch");
+                if (format == 3 && (!config.isInt("data-version") || config.getInt("data-version") <= 0))
+                    throw new IllegalArgumentException("Missing data version");
+                if (format == 3 && config.getInt("data-version") > org.bukkit.Bukkit.getUnsafe().getDataVersion())
+                    throw new BackupReadException(com.zfzfg.inventorybackup.api.RestoreResult.INCOMPATIBLE_VERSION,
+                            "Backup was created on a newer Minecraft version", null);
+                ItemStack[] contents = InventorySerializer.decodeInventory(config.getString("inventory"), format == 3);
+                if (format != 3 && contents.length == 41) contents = java.util.Arrays.copyOf(contents, 36);
+                ItemStack[] armor = InventorySerializer.decodeInventory(config.getString("armor"), format == 3);
+                ItemStack offhand = InventorySerializer.decodeItem(config.getString("offhand"), format == 3);
+                if (!config.isInt("level") || !(config.get("exp") instanceof Number)) throw new IllegalArgumentException("Invalid XP fields");
+                BackupSnapshot snapshot = new BackupSnapshot(handle, contents, armor, offhand,
+                        config.getInt("level"), (float) config.getDouble("exp"));
+                validateSnapshot(snapshot); return snapshot;
+            }));
+        } catch (Exception e) {
+            Throwable cause = e;
+            while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null) cause = cause.getCause();
+            if (cause instanceof BackupReadException error) throw error;
+            if (cause instanceof IOException io) throw new java.io.UncheckedIOException(io);
+            throw new BackupReadException(com.zfzfg.inventorybackup.api.RestoreResult.INVALID_BACKUP,
+                    "Cannot read backup " + fileName, cause);
+        } finally { lock.unlock(); }
     }
 
     /**
@@ -181,12 +217,16 @@ public class InventoryManager {
      * the main thread.
      */
     public Optional<BackupHandle> readHandle(UUID owner, String fileName) {
-        File file = getInventoryFile(owner, fileName);
-        if (file == null || !file.exists()) {
-            return Optional.empty();
-        }
-        return Optional.of(toHandle(owner, file.getName(),
-                YamlConfiguration.loadConfiguration(file)));
+        ReentrantLock lock = lockFor(owner); lock.lock();
+        try {
+            File file = getInventoryFile(owner, fileName);
+            if (file == null || !file.exists()) {
+                return Optional.empty();
+            }
+            return Optional.of(toHandle(owner, file.getName(),
+                    loadDocument(file)));
+
+        } finally { lock.unlock(); }
     }
 
     /**
@@ -195,37 +235,55 @@ public class InventoryManager {
      * @param type restrict to one backup type, or null for all
      */
     public List<BackupHandle> listHandles(UUID owner, String type) {
-        File[] files = backupFiles(playerFolder(owner));
-        if (files == null) {
-            return new ArrayList<>();
-        }
-
-        String wanted = type == null ? null : BackupType.normalize(type);
-        List<BackupHandle> handles = new ArrayList<>(files.length);
-        for (File file : files) {
-            BackupHandle handle = toHandle(owner, file.getName(),
-                    YamlConfiguration.loadConfiguration(file));
-            if (wanted == null || wanted.equals(handle.type())) {
-                handles.add(handle);
+        ReentrantLock lock = lockFor(owner); lock.lock();
+        try {
+            File[] files = backupFiles(playerFolder(owner));
+            if (files == null) {
+                return new ArrayList<>();
             }
-        }
 
-        handles.sort(Comparator.comparing((BackupHandle handle) -> handle.createdAt()).reversed()
-                .thenComparing(handle -> handle.id()));
-        return handles;
+            String wanted = type == null ? null : BackupType.normalize(type);
+            List<BackupHandle> handles = new ArrayList<>(files.length);
+            for (File file : files) {
+                BackupHandle handle = toHandle(owner, file.getName(),
+                        loadDocument(file));
+                if (wanted == null || wanted.equals(handle.type())) {
+                    handles.add(handle);
+                }
+            }
+
+            handles.sort(Comparator.comparing((BackupHandle handle) -> handle.createdAt()).reversed()
+                    .thenComparing(handle -> handle.id()));
+            return handles;
+
+        } finally { lock.unlock(); }
+    }
+
+    public void queueRestore(UUID target, BackupHandle handle, RestoreOptions options, String sourcePlugin) {
+        ReentrantLock lock = lockFor(handle.ownerId()); lock.lock();
+        try {
+            if (readBackup(handle.ownerId(), handle.id()).isEmpty()) throw new IllegalArgumentException("Backup does not exist");
+            plugin.getPendingRestores().put(target, handle.ownerId(), handle.id(), options, sourcePlugin);
+            plugin.getPendingRestores().saveIfDirty();
+        } finally { lock.unlock(); }
     }
 
     /** Deletes one backup. Blocking; call off the main thread. */
     public boolean deleteBackup(UUID owner, String fileName) {
-        File file = getInventoryFile(owner, fileName);
-        if (file == null || !file.exists()) {
-            return false;
-        }
-        boolean deleted = file.delete();
-        if (deleted) {
-            deleteFolderIfEmpty(playerFolder(owner));
-        }
-        return deleted;
+        ReentrantLock lock = lockFor(owner); lock.lock();
+        try {
+            File file = getInventoryFile(owner, fileName);
+            if (file == null || !file.exists()) {
+                return false;
+            }
+            boolean deleted = file.delete();
+            if (deleted) {
+                plugin.getPendingRestores().removeBackup(owner, file.getName());
+                deleteFolderIfEmpty(playerFolder(owner));
+            }
+            return deleted;
+
+        } finally { refreshFileNames(owner); lock.unlock(); }
     }
 
     /**
@@ -235,15 +293,20 @@ public class InventoryManager {
      * @return the handles of the files that were removed
      */
     public List<BackupHandle> deleteBackups(UUID owner, String type) {
-        List<BackupHandle> deleted = new ArrayList<>();
-        for (BackupHandle handle : listHandles(owner, type)) {
-            File file = getInventoryFile(owner, handle.id());
-            if (file != null && file.exists() && file.delete()) {
-                deleted.add(handle);
+        ReentrantLock lock = lockFor(owner); lock.lock();
+        try {
+            List<BackupHandle> deleted = new ArrayList<>();
+            for (BackupHandle handle : listHandles(owner, type)) {
+                File file = getInventoryFile(owner, handle.id());
+                if (file != null && file.exists() && file.delete()) {
+                    deleted.add(handle);
+                    plugin.getPendingRestores().removeBackup(owner, handle.id());
+                }
             }
-        }
-        deleteFolderIfEmpty(playerFolder(owner));
-        return deleted;
+            deleteFolderIfEmpty(playerFolder(owner));
+            return deleted;
+
+        } finally { refreshFileNames(owner); lock.unlock(); }
     }
 
     /**
@@ -284,19 +347,23 @@ public class InventoryManager {
                 continue;
             }
 
+            ReentrantLock cleanupLock = lockFor(owner); cleanupLock.lock();
+            try {
             for (File file : files) {
+                if (!file.isFile() || plugin.getPendingRestores().references(owner, file.getName())) continue;
                 long timestamp = parseTimestampFromFilename(file.getName());
                 if (timestamp <= 0 || (currentTime - timestamp) <= maxAgeMillis) {
                     continue;
                 }
                 BackupHandle handle = toHandle(owner, file.getName(),
-                        YamlConfiguration.loadConfiguration(file));
+                        loadDocument(file));
                 if (file.delete()) {
                     deleted.add(handle);
                 }
             }
 
             deleteFolderIfEmpty(playerFolder);
+            } finally { refreshFileNames(owner); cleanupLock.unlock(); }
         }
 
         return deleted;
@@ -306,10 +373,36 @@ public class InventoryManager {
      * Drops the write lock of a player who is no longer around. Without this the
      * lock map grows by one entry per distinct player for the server's lifetime.
      */
-    public void releaseLock(UUID owner) {
-        ReentrantLock lock = playerLocks.get(owner);
-        if (lock != null && !lock.isLocked()) {
-            playerLocks.remove(owner, lock);
+    public void releaseLock(UUID owner) { /* Fixed stripes cannot be removed while queued. */ }
+
+    private ReentrantLock lockFor(UUID owner) { return playerLocks[(owner.hashCode() & 0x7fffffff) % playerLocks.length]; }
+    public List<String> cachedFileNames(UUID owner) { return fileNames.getOrDefault(owner, List.of()); }
+    public void refreshFileNames(UUID owner) {
+        ReentrantLock lock = lockFor(owner); lock.lock();
+        try {
+            File[] files = backupFiles(playerFolder(owner));
+            if (files == null || files.length == 0) fileNames.remove(owner);
+            else fileNames.put(owner, java.util.Arrays.stream(files).map(File::getName).sorted().toList());
+        } finally { lock.unlock(); }
+    }
+    public void initializeFileNames() {
+        File[] folders = inventoriesFolder().listFiles(File::isDirectory);
+        if (folders != null) for (File folder : folders) {
+            UUID owner = parseUuid(folder.getName()); if (owner != null) refreshFileNames(owner);
+        }
+    }
+    private <T> T main(java.util.function.Supplier<T> work) {
+        return plugin.getApiService().mainCall(work).join();
+    }
+    public static void validateSnapshot(BackupSnapshot snapshot) {
+        if (snapshot == null || snapshot.contents().length != 36 || snapshot.armor().length != 4
+                || snapshot.level() < 0 || !Float.isFinite(snapshot.exp()) || snapshot.exp() < 0 || snapshot.exp() > 1)
+            throw new IllegalArgumentException("Invalid inventory snapshot");
+    }
+    public static final class BackupReadException extends RuntimeException {
+        public final com.zfzfg.inventorybackup.api.RestoreResult result;
+        public BackupReadException(com.zfzfg.inventorybackup.api.RestoreResult result, String message, Throwable cause) {
+            super(message, cause); this.result = result;
         }
     }
 
@@ -321,6 +414,7 @@ public class InventoryManager {
      * @return true if anything was written
      */
     public boolean applySnapshot(Player player, BackupSnapshot snapshot, RestoreOptions options) {
+        validateSnapshot(snapshot);
         if (options.isNoop()) {
             return false;
         }
@@ -350,8 +444,9 @@ public class InventoryManager {
                 ItemStack item = slot < armor.length ? armor[slot] : null;
                 if (options.clearBefore()) {
                     current[slot] = item;
-                } else if (item != null && current[slot] == null) {
-                    current[slot] = item;
+                } else if (item != null) {
+                    if (current[slot] == null || current[slot].getType().isAir()) current[slot] = item;
+                    else giveOrDrop(player, item, options);
                 }
             }
             inventory.setArmorContents(current);
@@ -362,8 +457,9 @@ public class InventoryManager {
             ItemStack current = inventory.getItemInOffHand();
             if (options.clearBefore()) {
                 inventory.setItemInOffHand(offhand);
-            } else if (offhand != null && (current == null || current.getType().isAir())) {
-                inventory.setItemInOffHand(offhand);
+            } else if (offhand != null) {
+                if (current == null || current.getType().isAir()) inventory.setItemInOffHand(offhand);
+                else giveOrDrop(player, offhand, options);
             }
         }
 
@@ -385,22 +481,71 @@ public class InventoryManager {
      * @return the number of item stacks handed over
      */
     public int applyMissingItems(Player player, BackupSnapshot snapshot) {
-        Inventory current = player.getInventory();
+        validateSnapshot(snapshot);
+        List<ItemStack> groups = new ArrayList<>();
+        List<ItemStack> saved = new ArrayList<>(java.util.Arrays.asList(snapshot.contents()));
+        saved.addAll(java.util.Arrays.asList(snapshot.armor())); saved.add(snapshot.offhand());
+        for (ItemStack item : saved) {
+            if (item == null || item.getType().isAir()) continue;
+            ItemStack group = groups.stream().filter(existing -> existing.isSimilar(item)).findFirst().orElse(null);
+            if (group == null) groups.add(item.clone()); else group.setAmount(group.getAmount() + item.getAmount());
+        }
         int given = 0;
-
-        for (ItemStack savedItem : snapshot.contents()) {
-            if (savedItem == null || hasItem(current, savedItem)) {
-                continue;
-            }
-            HashMap<Integer, ItemStack> leftover = current.addItem(savedItem);
-            given++;
-            for (ItemStack item : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), item);
+        ItemStack[] currentArmor = player.getInventory().getArmorContents(), savedArmor = snapshot.armor();
+        for (int i = 0; i < 4; i++) {
+            if (savedArmor[i] != null && (currentArmor[i] == null || currentArmor[i].getType().isAir())) {
+                currentArmor[i] = savedArmor[i]; given++;
             }
         }
-
-        player.updateInventory();
+        player.getInventory().setArmorContents(currentArmor);
+        if (snapshot.offhand() != null && player.getInventory().getItemInOffHand().getType().isAir()) {
+            player.getInventory().setItemInOffHand(snapshot.offhand()); given++;
+        }
+        for (ItemStack group : groups) {
+            int current = 0;
+            for (ItemStack item : player.getInventory().getContents())
+                if (item != null && item.isSimilar(group)) current += item.getAmount();
+            int missing = Math.max(0, group.getAmount() - current);
+            while (missing > 0) {
+                ItemStack item = group.clone(); item.setAmount(Math.min(missing, item.getMaxStackSize()));
+                missing -= item.getAmount();
+                for (ItemStack leftover : player.getInventory().addItem(item).values())
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                given++;
+            }
+        }
         return given;
+    }
+
+    public boolean hasSpace(Player player, BackupSnapshot snapshot, RestoreOptions options) {
+        if (options.clearBefore() || options.dropOverflow()) return true;
+        ItemStack[] slots = player.getInventory().getStorageContents();
+        for (int i = 0; i < slots.length; i++) if (slots[i] != null) slots[i] = slots[i].clone();
+        List<ItemStack> additions = new ArrayList<>();
+        if (options.contents()) additions.addAll(java.util.Arrays.asList(snapshot.contents()));
+        if (options.armor()) {
+            ItemStack[] current = player.getInventory().getArmorContents(), armor = snapshot.armor();
+            for (int i = 0; i < 4; i++) if (current[i] != null && !current[i].getType().isAir()) additions.add(armor[i]);
+        }
+        if (options.offhand() && !player.getInventory().getItemInOffHand().getType().isAir()) additions.add(snapshot.offhand());
+        for (ItemStack source : additions) {
+            if (source == null || source.getType().isAir()) continue;
+            int remaining = source.getAmount();
+            for (ItemStack slot : slots) {
+                if (slot != null && slot.isSimilar(source)) {
+                    int add = Math.min(remaining, Math.max(0, Math.min(slot.getMaxStackSize(), player.getInventory().getMaxStackSize()) - slot.getAmount()));
+                    slot.setAmount(slot.getAmount() + add); remaining -= add;
+                }
+            }
+            for (int i = 0; i < slots.length && remaining > 0; i++) {
+                if (slots[i] == null || slots[i].getType().isAir()) {
+                    slots[i] = source.clone(); int add = Math.min(remaining, Math.min(source.getMaxStackSize(), player.getInventory().getMaxStackSize()));
+                    slots[i].setAmount(add); remaining -= add;
+                }
+            }
+            if (remaining > 0) return false;
+        }
+        return true;
     }
 
     private void giveOrDrop(Player player, ItemStack item, RestoreOptions options) {
@@ -453,7 +598,7 @@ public class InventoryManager {
      */
     private static File uniqueFile(File folder, String timestamp, String type) {
         File file = new File(folder, timestamp + "_" + type + ".yml");
-        for (int counter = 2; file.exists() && counter < 1000; counter++) {
+        for (int counter = 2; file.exists(); counter++) {
             file = new File(folder, timestamp + "_" + type + "-" + counter + ".yml");
         }
         return file;
@@ -486,7 +631,8 @@ public class InventoryManager {
         try {
             String canonicalPath = file.getCanonicalPath();
             String canonicalFolder = playerFolder.getCanonicalPath();
-            if (!canonicalPath.startsWith(canonicalFolder)) {
+            if (!playerFolder.getCanonicalFile().toPath().startsWith(inventoriesFolder().getCanonicalFile().toPath())
+                    || !file.getCanonicalFile().toPath().startsWith(playerFolder.getCanonicalFile().toPath())) {
                 plugin.getLogger().warning(plugin.getLanguageManager().getConsoleMsg(
                         "path-traversal", "file", fileName));
                 return null;
@@ -501,6 +647,16 @@ public class InventoryManager {
     }
 
     // ------------------------------------------------------------- parsing
+
+    private static YamlConfiguration loadDocument(File file) {
+        try {
+            if (java.nio.file.Files.size(file.toPath()) > InventorySerializer.MAX_BYTES * 4L)
+                throw new IllegalArgumentException("Backup exceeds size limit");
+            YamlConfiguration config = new YamlConfiguration(); config.load(file); return config;
+        } catch (IOException error) { throw new java.io.UncheckedIOException(error); }
+        catch (org.bukkit.configuration.InvalidConfigurationException error) { throw new BackupReadException(
+                com.zfzfg.inventorybackup.api.RestoreResult.INVALID_BACKUP, "Invalid backup YAML", error); }
+    }
 
     /** Builds a handle from a loaded backup file, filling in v1 gaps. */
     private BackupHandle toHandle(UUID owner, String fileName, YamlConfiguration config) {

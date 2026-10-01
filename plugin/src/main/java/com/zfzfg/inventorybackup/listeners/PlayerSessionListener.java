@@ -50,7 +50,7 @@ public class PlayerSessionListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
-        plugin.getInventoryManager().releaseLock(event.getPlayer().getUniqueId());
+        plugin.getDamageListener().removeCachedInventory(event.getPlayer().getUniqueId());
     }
 
     private void applyPending(UUID playerId) {
@@ -60,28 +60,33 @@ public class PlayerSessionListener implements Listener {
             return;
         }
 
-        // Taken out of the queue before the read: a restore that cannot be read
-        // is a restore that will never work, and leaving it in place would retry
-        // it on every single join.
-        plugin.getPendingRestores().remove(playerId);
-
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            plugin.getPendingRestores().saveIfDirty();
-
-            plugin.getInventoryManager().readBackup(entry.owner(), entry.backupId())
-                    .ifPresent(snapshot -> plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        if (!player.isOnline()) {
-                            return;
-                        }
-                        RestoreResult result =
-                                plugin.getApiService().applyNow(player, snapshot, entry.options());
-                        if (result == RestoreResult.APPLIED) {
-                            plugin.getLogger().info(plugin.getLanguageManager().getConsoleMsg(
-                                    "pending-applied", "player", player.getName()));
-                            player.sendMessage(plugin.getMessage("inventory-restored",
-                                    "player", player.getName()));
-                        }
-                    }));
-        });
+        if (entry.failure() != null) return;
+        plugin.getApiService().background(() -> plugin.getInventoryManager().readBackup(entry.owner(), entry.backupId()))
+                .thenCompose(snapshot -> plugin.getApiService().mainCall(() -> {
+                    Player current = plugin.getServer().getPlayer(playerId);
+                    if (current != player || !player.isOnline()
+                            || plugin.getPendingRestores().get(playerId).orElse(null) != entry) return false;
+                    if (snapshot.isEmpty()) {
+                        plugin.getPendingRestores().failIfSame(playerId, entry, "Backup no longer exists");
+                        plugin.getLogger().warning("Pending restore backup missing: " + entry.backupId());
+                        return false;
+                    }
+                    RestoreResult result = plugin.getApiService().applyNow(player, snapshot.get(), entry.options());
+                    if (result == RestoreResult.APPLIED) {
+                        plugin.getPendingRestores().removeIfSame(playerId, entry);
+                        player.sendMessage(plugin.getMessage("inventory-restored", "player", player.getName()));
+                    }
+                    return result == RestoreResult.APPLIED;
+                })).thenCompose(applied -> plugin.getApiService().background(() -> {
+                    plugin.getPendingRestores().saveIfDirty(); return applied;
+                })).exceptionally(error -> {
+                    Throwable cause = error;
+                    while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null) cause = cause.getCause();
+                    if (cause instanceof com.zfzfg.inventorybackup.managers.InventoryManager.BackupReadException)
+                        plugin.getPendingRestores().failIfSame(playerId, entry, cause.getMessage());
+                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Pending restore retained: " + entry.backupId(), cause);
+                    if (plugin.isEnabled()) plugin.getApiService().background(() -> { plugin.getPendingRestores().saveIfDirty(); return true; });
+                    return false;
+                });
     }
 }

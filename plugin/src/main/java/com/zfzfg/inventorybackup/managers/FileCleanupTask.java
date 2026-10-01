@@ -24,17 +24,12 @@ public class FileCleanupTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        plugin.getLogger().info(plugin.getLanguageManager().getConsoleMsg("cleanup-running"));
-
-        List<BackupHandle> deleted = plugin.getInventoryManager().cleanOldFiles();
-
-        if (deleted.isEmpty()) {
-            plugin.getLogger().info(plugin.getLanguageManager().getConsoleMsg("cleanup-nothing"));
-        } else {
-            plugin.getLogger().info(plugin.getLanguageManager().getConsoleMsg(
-                    "cleanup-finished", "count", String.valueOf(deleted.size())));
-            plugin.getServer().getScheduler().runTask(plugin, () ->
-                    plugin.getApiService().fireDeleted(deleted, BackupDeletedEvent.Reason.EXPIRED));
-        }
+        plugin.getApiService().background(() -> plugin.getInventoryManager().cleanOldFiles())
+                .thenCompose(deleted -> plugin.getApiService().mainCall(() -> {
+                    plugin.getApiService().fireDeleted(deleted, BackupDeletedEvent.Reason.EXPIRED);
+                    return deleted.size();
+                })).exceptionally(error -> {
+                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Backup cleanup failed", error); return 0;
+                });
     }
 }

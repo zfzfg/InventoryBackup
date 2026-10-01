@@ -3,9 +3,9 @@
 Create, list, restore and delete inventory backups from your own plugin, and hook
 into every backup the plugin takes on its own.
 
-- **Artifact:** `com.zfzfg:InventoryBackup-API:0.1.0`
-- **Requires:** Java 17, Spigot/Paper 1.20+
-- **API version:** 1 (`InventoryBackupAPI.API_VERSION`)
+- **Artifact:** `com.zfzfg:InventoryBackup-API:0.2.0`
+- **Requires:** Java 21 bytecode, Purpur 1.21.8–26.3 (Java 25 runtime on 26.1+)
+- **API version:** 2 (`InventoryBackupAPI.API_VERSION`)
 
 ---
 
@@ -24,7 +24,7 @@ mvn clean install
 <dependency>
     <groupId>com.zfzfg</groupId>
     <artifactId>InventoryBackup-API</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -32,7 +32,7 @@ mvn clean install
 ### Gradle
 
 ```groovy
-compileOnly 'com.zfzfg:InventoryBackup-API:0.1.0'
+compileOnly 'com.zfzfg:InventoryBackup-API:0.2.0'
 ```
 
 `provided` / `compileOnly` is correct: the API classes ship inside
@@ -77,9 +77,9 @@ dead instance.
 
 ## 3. Threading
 
-**Every `CompletableFuture` this API returns completes on the server's main
-thread.** You may call Bukkit methods directly inside `thenAccept` / `thenApply`
-/ `thenRun` without hopping schedulers yourself:
+**Successful asynchronous results are delivered on the server thread.** Internal operations explicitly dispatch events and player access.
+Failures may complete on any thread. A callback attached after a future has completed runs on the attaching thread, so consumers needing an unconditional Bukkit-thread guarantee must dispatch explicitly.
+Callbacks attached immediately from the main thread can use Bukkit as below:
 
 ```java
 api.getLatestBackup(playerId, "death").thenAccept(handle ->
@@ -412,3 +412,15 @@ Upgrading from 0.0.7 or earlier: backups used to live under
 `inventories/<PlayerName>/`. They are moved to UUID folders automatically on
 first start. Nothing is deleted — a folder whose owner cannot be determined ends
 up in `inventories/_unmigrated/` for you to sort out by hand.
+
+## API revision 2 behavior
+
+`RestoreResult` adds `INVALID_BACKUP`, `INCOMPATIBLE_VERSION`, and `INSUFFICIENT_SPACE`.
+An absent backup remains `NOT_FOUND`; invalid payloads and newer Minecraft data versions are distinct failures.
+`loadBackup` fails its future for unreadable data; it returns empty only for an absent file.
+`createBackup` returns empty for event cancellation; serialization and persistence failures complete exceptionally.
+Queue futures succeed only after persistence. Shutdown rejects new work and completes outstanding futures exceptionally.
+
+Snapshots defensively clone all items on input and output. The current contract is 36 storage slots plus four armor slots and separate offhand.
+`giveMissingItems` sums similar items across storage, armor and offhand, equips empty armor/offhand slots and adds only the remaining deficit.
+For additive restores, occupied equipment slots send saved items to storage/overflow. With `dropOverflow=false`, insufficient capacity rejects the entire restore before mutation.

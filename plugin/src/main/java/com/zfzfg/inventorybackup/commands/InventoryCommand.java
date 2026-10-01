@@ -220,7 +220,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                         sendBackupNotification(sender, "backup-all-created",
                                 "count", String.valueOf(count));
                     })
-                    .exceptionally(this::report);
+                    .exceptionally(error -> report(sender, error));
         } else {
             Player target = Bukkit.getPlayerExact(args[1]);
             if (target == null) {
@@ -234,7 +234,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                             sendBackupNotification(sender, "backup-created", "player", target.getName());
                         }
                     })
-                    .exceptionally(this::report);
+                    .exceptionally(error -> report(sender, error));
         }
     }
 
@@ -261,7 +261,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
         withBackup(sender, owner.get(), fileName, handle ->
                 api.restore(owner.get(), handle, RestoreOptions.all())
                         .thenAccept(result -> sender.sendMessage(restoreMessage(result, playerName)))
-                        .exceptionally(this::report));
+                        .exceptionally(error -> report(sender, error)));
     }
 
     private String restoreMessage(RestoreResult result, String playerName) {
@@ -270,6 +270,10 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                 return plugin.getMessage("inventory-restored", "player", playerName);
             case QUEUED_FOR_JOIN:
                 return plugin.getMessage("restore-queued", "player", playerName);
+            case INVALID_BACKUP: return plugin.getMessage("restore-invalid");
+            case INCOMPATIBLE_VERSION: return plugin.getMessage("restore-incompatible");
+            case INSUFFICIENT_SPACE: return plugin.getMessage("restore-space");
+            case FAILED: return plugin.getMessage("operation-failed");
             case CANCELLED:
                 return plugin.getMessage("restore-cancelled", "player", playerName);
             default:
@@ -316,7 +320,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                                         "count", String.valueOf(given), "player", playerName));
                             }
                         })
-                        .exceptionally(this::report));
+                        .exceptionally(error -> report(sender, error)));
     }
 
     private void handleList(CommandSender sender, String playerName) {
@@ -342,7 +346,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                                 "source", backup.sourcePlugin() == null ? "-" : backup.sourcePlugin()));
                     }
                 })
-                .exceptionally(this::report);
+                .exceptionally(error -> report(sender, error));
     }
 
     private void handleDelete(CommandSender sender, String playerName, String fileName) {
@@ -357,7 +361,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
             api.deleteBackups(owner.get(), null, BackupDeletedEvent.Reason.COMMAND)
                     .thenAccept(count -> sender.sendMessage(plugin.getMessage("all-backups-deleted",
                             "count", String.valueOf(count), "player", playerName)))
-                    .exceptionally(this::report);
+                    .exceptionally(error -> report(sender, error));
             return;
         }
 
@@ -366,7 +370,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                         .thenAccept(deleted -> sender.sendMessage(deleted
                                 ? plugin.getMessage("backup-deleted", "filename", handle.id())
                                 : plugin.getMessage("no-inventory-found")))
-                        .exceptionally(this::report));
+                        .exceptionally(error -> report(sender, error)));
     }
 
     private void handlePending(CommandSender sender, String playerName) {
@@ -375,12 +379,17 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        var stored = plugin.getPendingRestores().get(target.get()).orElse(null);
+        if (stored != null && stored.failure() != null) {
+            sender.sendMessage(plugin.getMessage("pending-failed", "file", stored.backupId(), "error", stored.failure()));
+            return;
+        }
         plugin.getApiService().getPendingRestore(target.get())
                 .thenAccept(pending -> sender.sendMessage(pending
                         .map(entry -> plugin.getMessage("pending-info",
                                 "player", playerName, "file", entry.handle().id()))
                         .orElseGet(() -> plugin.getMessage("pending-none", "player", playerName))))
-                .exceptionally(this::report);
+                .exceptionally(error -> report(sender, error));
     }
 
     private void handleCancelPending(CommandSender sender, String playerName) {
@@ -393,7 +402,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                 .thenAccept(cancelled -> sender.sendMessage(cancelled
                         ? plugin.getMessage("pending-cancelled", "player", playerName)
                         : plugin.getMessage("pending-none", "player", playerName)))
-                .exceptionally(this::report);
+                .exceptionally(error -> report(sender, error));
     }
 
     /**
@@ -410,16 +419,19 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
                         sender.sendMessage(plugin.getMessage("no-inventory-found"));
                     }
                 })
-                .exceptionally(this::report);
+                .exceptionally(error -> report(sender, error));
     }
 
     /**
      * Logs a failed future. Without this the exception disappears into the
      * CompletableFuture and the sender is left staring at nothing.
      */
-    private Void report(Throwable error) {
+    private Void report(CommandSender sender, Throwable error) {
         plugin.getLogger().severe(plugin.getLanguageManager().getConsoleMsg(
                 "command-failed", "error", String.valueOf(error.getMessage())));
+        if (plugin.isEnabled()) plugin.getApiService().mainCall(() -> {
+            sender.sendMessage(plugin.getMessage("operation-failed")); return true;
+        });
         return null;
     }
 
@@ -429,7 +441,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        plugin.reloadAll();
+        try { plugin.reloadAll(); } catch (RuntimeException error) { report(sender, error); return; }
         sender.sendMessage(plugin.getMessage("reloaded"));
     }
 
@@ -541,13 +553,7 @@ public class InventoryCommand implements CommandExecutor, TabCompleter {
             return names;
         }
 
-        File playerFolder = new File(plugin.getDataFolder(), "inventories/" + owner.get());
-        File[] files = playerFolder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files != null) {
-            for (File file : files) {
-                names.add(file.getName());
-            }
-        }
+        names.addAll(plugin.getInventoryManager().cachedFileNames(owner.get()));
         return names;
     }
 }

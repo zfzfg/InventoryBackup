@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Maps player names to UUIDs and back, without ever touching the network.
@@ -40,8 +39,10 @@ public final class PlayerIndex {
     private final Map<String, UUID> byName = new ConcurrentHashMap<>();
     private final Map<UUID, String> byId = new ConcurrentHashMap<>();
 
-    /** Set when something changed; cleared by {@link #saveIfDirty()}. */
-    private final AtomicBoolean dirty = new AtomicBoolean(false);
+    /** Revisions let a completed write acknowledge only the snapshot it persisted. */
+    private long revision;
+    private long savedRevision;
+    private final Object persistenceLock = new Object();
 
     public PlayerIndex(InventoryBackup plugin) {
         this.plugin = plugin;
@@ -49,7 +50,7 @@ public final class PlayerIndex {
     }
 
     /** Reads the index from disk. Call once during enable. */
-    public void load() {
+    public synchronized void load() {
         byName.clear();
         byId.clear();
 
@@ -57,7 +58,9 @@ public final class PlayerIndex {
             return;
         }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration config = new YamlConfiguration();
+        try { config.load(file); }
+        catch (Exception error) { throw new IllegalStateException("Cannot load PlayerIndex safely; original file preserved", error); }
         ConfigurationSection players = config.getConfigurationSection("players");
         if (players == null) {
             return;
@@ -77,7 +80,7 @@ public final class PlayerIndex {
      * Records a name/UUID pair. Cheap and safe to call on every join -- the file
      * is only rewritten when something actually changed.
      */
-    public void remember(UUID id, String name) {
+    public synchronized void remember(UUID id, String name) {
         if (id == null || name == null || name.isEmpty()) {
             return;
         }
@@ -85,12 +88,12 @@ public final class PlayerIndex {
         String previous = byId.put(id, name);
         if (previous != null && !previous.equalsIgnoreCase(name)) {
             // Player renamed: drop the stale name so it stops resolving to them.
-            byName.remove(previous.toLowerCase(Locale.ROOT));
+            byName.remove(previous.toLowerCase(Locale.ROOT), id);
         }
         UUID replaced = byName.put(name.toLowerCase(Locale.ROOT), id);
 
         if (!id.equals(replaced) || !name.equals(previous)) {
-            dirty.set(true);
+            revision++;
         }
     }
 
@@ -119,25 +122,30 @@ public final class PlayerIndex {
 
     /** Writes the index if anything changed. Blocking; call off the main thread. */
     public void saveIfDirty() {
-        if (!dirty.compareAndSet(true, false)) {
-            return;
-        }
+        synchronized (persistenceLock) {
+            final long snapshotRevision;
+            final String document;
+            synchronized (this) {
+                if (savedRevision == revision) return;
+                snapshotRevision = revision;
+                YamlConfiguration config = new YamlConfiguration();
+                config.options().setHeader(List.of(
+                        "Player name index. Rebuilt automatically - safe to delete,",
+                        "but names of players who have not joined since will stop resolving."));
 
-        YamlConfiguration config = new YamlConfiguration();
-        config.options().setHeader(List.of(
-                "Player name index. Rebuilt automatically - safe to delete,",
-                "but names of players who have not joined since will stop resolving."));
+                ConfigurationSection players = config.createSection("players");
+                byId.forEach((id, name) -> players.set(id.toString(), name));
 
-        ConfigurationSection players = config.createSection("players");
-        byId.forEach((id, name) -> players.set(id.toString(), name));
-
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            // Put the flag back so the next attempt tries again.
-            dirty.set(true);
-            plugin.getLogger().warning(plugin.getLanguageManager().getConsoleMsg(
-                    "index-save-failed", "error", String.valueOf(e.getMessage())));
+                document = config.saveToString();
+            }
+            try {
+                com.zfzfg.inventorybackup.utils.AtomicFiles.write(file.toPath(), document);
+                synchronized (this) { savedRevision = snapshotRevision; }
+            } catch (IOException e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Cannot persist PlayerIndex", e);
+                throw new java.io.UncheckedIOException(e);
+            }
         }
     }
+
 }

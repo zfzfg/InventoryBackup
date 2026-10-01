@@ -12,8 +12,7 @@ import org.bukkit.inventory.PlayerInventory;
  * something the player is not currently wearing.
  *
  * <p>The arrays are defensively copied on the way in and on the way out, so a
- * snapshot never shares state with a live inventory. The {@link ItemStack}s
- * themselves are not cloned - treat them as read-only.
+ * snapshot never shares state with a live inventory. Every {@link ItemStack} is also cloned.
  */
 public final class BackupSnapshot {
 
@@ -36,9 +35,9 @@ public final class BackupSnapshot {
     public BackupSnapshot(BackupHandle handle, ItemStack[] contents, ItemStack[] armor,
                           ItemStack offhand, int level, float exp) {
         this.handle = handle;
-        this.contents = contents == null ? new ItemStack[0] : contents.clone();
-        this.armor = armor == null ? new ItemStack[0] : armor.clone();
-        this.offhand = offhand;
+        this.contents = copy(contents);
+        this.armor = copy(armor);
+        this.offhand = offhand == null ? null : offhand.clone();
         this.level = level;
         this.exp = exp;
     }
@@ -54,11 +53,18 @@ public final class BackupSnapshot {
         PlayerInventory inv = player.getInventory();
         return new BackupSnapshot(
                 null,
-                inv.getContents(),
+                inv.getStorageContents(),
                 inv.getArmorContents(),
                 inv.getItemInOffHand(),
                 player.getLevel(),
                 player.getExp());
+    }
+
+    private static ItemStack[] copy(ItemStack[] source) {
+        if (source == null) return new ItemStack[0];
+        ItemStack[] result = new ItemStack[source.length];
+        for (int i = 0; i < source.length; i++) result[i] = source[i] == null ? null : source[i].clone();
+        return result;
     }
 
     /** The stored backup this came from, or null if it was built in memory. */
@@ -68,17 +74,17 @@ public final class BackupSnapshot {
 
     /** Main inventory contents; a fresh copy on every call. */
     public ItemStack[] contents() {
-        return contents.clone();
+        return copy(contents);
     }
 
     /** Armour contents in Bukkit order; a fresh copy on every call. */
     public ItemStack[] armor() {
-        return armor.clone();
+        return copy(armor);
     }
 
     /** Offhand item, or null. */
     public ItemStack offhand() {
-        return offhand;
+        return offhand == null ? null : offhand.clone();
     }
 
     /** Experience level. */

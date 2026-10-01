@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Restores that are waiting for their target player to come online.
@@ -24,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>Only the <i>reference</i> to the backup is stored (owner plus file name),
  * never a copy of the items. The handle is rebuilt from the backup file when the
  * player joins; if the backup has been deleted in the meantime, the entry is
- * dropped rather than applying something stale.
+ * marked failed rather than applying something stale.
  */
 public final class PendingRestoreStore {
 
@@ -34,7 +33,9 @@ public final class PendingRestoreStore {
     private final File file;
 
     private final Map<UUID, Entry> entries = new ConcurrentHashMap<>();
-    private final AtomicBoolean dirty = new AtomicBoolean(false);
+    private long revision;
+    private long savedRevision;
+    private final Object persistenceLock = new Object();
 
     public PendingRestoreStore(InventoryBackup plugin) {
         this.plugin = plugin;
@@ -42,13 +43,15 @@ public final class PendingRestoreStore {
     }
 
     /** Reads the queue from disk. Call once during enable. */
-    public void load() {
+    public synchronized void load() {
         entries.clear();
         if (!file.exists()) {
             return;
         }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration config = new YamlConfiguration();
+        try { config.load(file); }
+        catch (Exception error) { throw new IllegalStateException("Cannot load PendingRestoreStore safely; original file preserved", error); }
         for (String rawTarget : config.getKeys(false)) {
             UUID target = InventoryManager.parseUuid(rawTarget);
             ConfigurationSection section = config.getConfigurationSection(rawTarget);
@@ -62,30 +65,53 @@ public final class PendingRestoreStore {
                 continue;
             }
 
-            entries.put(target, new Entry(target, owner, backupId,
+            Entry loaded = new Entry(target, owner, backupId,
                     readOptions(section.getConfigurationSection("options")),
                     section.getLong("queued-at", System.currentTimeMillis()),
-                    section.getString("source-plugin")));
+                    section.getString("source-plugin"));
+            loaded.failure = section.getString("failure");
+            entries.put(target, loaded);
         }
     }
 
     /** Queues a restore, replacing whatever was queued for that player before. */
-    public void put(UUID target, UUID owner, String backupId, RestoreOptions options, String sourcePlugin) {
+    public synchronized void put(UUID target, UUID owner, String backupId, RestoreOptions options, String sourcePlugin) {
         entries.put(target, new Entry(target, owner, backupId,
                 options == null ? RestoreOptions.all() : options,
                 System.currentTimeMillis(), sourcePlugin));
-        dirty.set(true);
+        revision++;
     }
 
-    public Optional<Entry> get(UUID target) {
-        return Optional.ofNullable(entries.get(target));
+    public synchronized Optional<Entry> get(UUID target) {
+        Entry entry = entries.get(target);
+        if (entry != null && expired(entry)) { entries.remove(target); revision++; return Optional.empty(); }
+        return Optional.ofNullable(entry);
+    }
+    private boolean expired(Entry entry) {
+        int days = plugin.getConfig().getInt("pending-restore-expiry-days", 30);
+        return days > 0 && entry.queuedAt() < System.currentTimeMillis() - days * 86400000L;
+    }
+    public synchronized boolean removeIfSame(UUID target, Entry entry) {
+        boolean removed = entries.remove(target, entry); if (removed) revision++; return removed;
+    }
+    public synchronized void failIfSame(UUID target, Entry entry, String reason) {
+        if (entries.get(target) == entry) { entry.failure = reason; revision++; }
+    }
+    public synchronized boolean references(UUID owner, String backupId) {
+        return entries.values().stream().anyMatch(entry -> !expired(entry) && entry.owner().equals(owner) && entry.backupId().equals(backupId));
+    }
+    public synchronized void removeBackup(UUID owner, String backupId) {
+        if (entries.values().removeIf(entry -> entry.owner().equals(owner) && entry.backupId().equals(backupId))) {
+            revision++;
+            plugin.getLogger().warning("Pending restores cancelled because backup was explicitly deleted: " + backupId);
+        }
     }
 
     /** @return true if there was an entry to remove */
-    public boolean remove(UUID target) {
+    public synchronized boolean remove(UUID target) {
         boolean removed = entries.remove(target) != null;
         if (removed) {
-            dirty.set(true);
+            revision++;
         }
         return removed;
     }
@@ -95,7 +121,7 @@ public final class PendingRestoreStore {
      *
      * @return how many were dropped
      */
-    public int purgeExpired() {
+    public synchronized int purgeExpired() {
         int days = plugin.getConfig().getInt("pending-restore-expiry-days", 30);
         if (days <= 0) {
             return 0;
@@ -107,39 +133,45 @@ public final class PendingRestoreStore {
 
         int removed = before - entries.size();
         if (removed > 0) {
-            dirty.set(true);
+            revision++;
         }
         return removed;
     }
 
     /** Writes the queue if anything changed. Blocking; call off the main thread. */
     public void saveIfDirty() {
-        if (!dirty.compareAndSet(true, false)) {
-            return;
-        }
+        synchronized (persistenceLock) {
+            final long snapshotRevision;
+            final String document;
+            synchronized (this) {
+                if (savedRevision == revision) return;
+                snapshotRevision = revision;
+                YamlConfiguration config = new YamlConfiguration();
+                config.options().setHeader(List.of(
+                        "Restores waiting for their target player to join.",
+                        "Managed by the plugin - deleting this file just drops the queue."));
 
-        YamlConfiguration config = new YamlConfiguration();
-        config.options().setHeader(List.of(
-                "Restores waiting for their target player to join.",
-                "Managed by the plugin - deleting this file just drops the queue."));
+                for (Entry entry : entries.values()) {
+                    ConfigurationSection section = config.createSection(entry.target().toString());
+                    section.set("owner", entry.owner().toString());
+                    section.set("backup", entry.backupId());
+                    section.set("queued-at", entry.queuedAt());
+                    section.set("failure", entry.failure);
+                    if (entry.sourcePlugin() != null) {
+                        section.set("source-plugin", entry.sourcePlugin());
+                    }
+                    writeOptions(section.createSection("options"), entry.options());
+                }
 
-        for (Entry entry : entries.values()) {
-            ConfigurationSection section = config.createSection(entry.target().toString());
-            section.set("owner", entry.owner().toString());
-            section.set("backup", entry.backupId());
-            section.set("queued-at", entry.queuedAt());
-            if (entry.sourcePlugin() != null) {
-                section.set("source-plugin", entry.sourcePlugin());
+                document = config.saveToString();
             }
-            writeOptions(section.createSection("options"), entry.options());
-        }
-
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            dirty.set(true);
-            plugin.getLogger().warning(plugin.getLanguageManager().getConsoleMsg(
-                    "pending-save-failed", "error", String.valueOf(e.getMessage())));
+            try {
+                com.zfzfg.inventorybackup.utils.AtomicFiles.write(file.toPath(), document);
+                synchronized (this) { savedRevision = snapshotRevision; }
+            } catch (IOException e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Cannot persist PendingRestoreStore", e);
+                throw new java.io.UncheckedIOException(e);
+            }
         }
     }
 
@@ -171,6 +203,8 @@ public final class PendingRestoreStore {
     /** One queued restore, as stored. The backup handle is resolved on use. */
     public static final class Entry {
 
+        private volatile String failure;
+        public String failure() { return failure; }
         private final UUID target;
         private final UUID owner;
         private final String backupId;

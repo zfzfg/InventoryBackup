@@ -39,9 +39,9 @@ public final class LanguageManager {
 
     private final InventoryBackup plugin;
 
-    private FileConfiguration messages;
+    private volatile FileConfiguration messages;
     private FileConfiguration bundledEnglish;
-    private String language = FALLBACK_LANGUAGE;
+    private volatile String language = FALLBACK_LANGUAGE;
 
     public LanguageManager(InventoryBackup plugin) {
         this.plugin = plugin;
@@ -73,7 +73,9 @@ public final class LanguageManager {
             plugin.saveResource(fileName, false);
         }
 
-        FileConfiguration loaded = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration loaded = new YamlConfiguration();
+        try { loaded.load(file); }
+        catch (Exception error) { throw new IllegalArgumentException("Invalid language bundle: " + fileName, error); }
         applyEnglishFallback(loaded);
         this.messages = loaded;
 

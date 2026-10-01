@@ -19,14 +19,14 @@ import org.bukkit.inventory.Inventory;
  */
 public class PreviewGuiListener implements Listener {
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (isPreview(event.getInventory())) {
             event.setCancelled(true);
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryDrag(InventoryDragEvent event) {
         if (isPreview(event.getInventory())) {
             event.setCancelled(true);

@@ -12,3 +12,6 @@ target/
 
 .DS_Store
 Thumbs.db
+
+.test-cache/
+target-last-build.log

@@ -1,9 +1,9 @@
 # InventoryBackup Plugin
 
-A Minecraft Spigot plugin that automatically saves player inventories on death and provides comprehensive restore functionality.
+A Minecraft Purpur plugin that automatically saves player inventories on death and provides comprehensive restore functionality.
 
 - **Modrinth Project:** https://modrinth.com/project/rpKY25cW
-- **Developer API Artifact:** `com.zfzfg:InventoryBackup-API:0.1.0`
+- **Developer API Artifact:** `com.zfzfg:InventoryBackup-API:0.2.0`
 
 ## Author
 
@@ -17,7 +17,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Features
 
-- **Automatic Death Backups**: Automatically saves player inventories when they die (two-stage caching prevents loss on one-shot deaths)
+- **Automatic Death Backups**: Automatically saves player inventories when they die (captures the live death-event inventory with a fresh damage-cache fallback)
 - **Manual Backups**: Create manual backups for any online player or all players at once
 - **Inventory Restoration**: Restore inventories completely from saved backups
 - **Inventory Preview**: View saved inventories in a secure, click-protected GUI
@@ -33,8 +33,10 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Requirements
 
-- Java 17 or higher
-- Minecraft 1.20+ (Spigot / Paper / Purpur)
+- Purpur 1.21.8 through 26.3; future versions require another compatibility test
+- Java 21 for Minecraft 1.21.x; Java 25 for Minecraft 26.1+
+- Spigot and Folia are not supported
+- See [COMPATIBILITY.md](COMPATIBILITY.md) for tested builds and remaining release checks
 
 ## Installation
 
@@ -43,13 +45,13 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
    mvn clean package
    ```
 
-2. The plugin JAR will be located at `plugin/target/InventoryBackup-0.1.0.jar`
+2. The plugin JAR will be located at `plugin/target/InventoryBackup-0.2.0.jar`
 
 3. Drop the JAR into your server's `plugins/` folder
 
-4. Start or reload your server
+4. Start your server (use `/inv reload` only for plugin configuration)
 
-The project is structured as a multi-module Maven build: `plugin/` produces the server plugin JAR, while `api/` produces the artifact other developers compile against (`api/target/InventoryBackup-API-0.1.0.jar`). The API is shaded into the plugin JAR, so server administrators only need the single plugin file.
+The project is structured as a multi-module Maven build: `plugin/` produces the server plugin JAR, while `api/` produces the artifact other developers compile against (`api/target/InventoryBackup-API-0.2.0.jar`). The API is shaded into the plugin JAR, so server administrators only need the single plugin file.
 
 ## Configuration
 
@@ -173,12 +175,9 @@ All permissions default to OP:
 
 ### Death Backup System
 
-The plugin uses a two-stage caching system to ensure reliable inventory capture:
-
-1. **Damage Detection**: When a player takes damage that brings them to 4 hearts or less, their inventory is cached synchronously on the main thread.
-2. **Death Event**: When the player dies, the cached inventory is saved to disk asynchronously.
-
-This ensures that even one-shot deaths (void, fall damage, instant effects) are captured reliably.
+The death listener captures the live inventory synchronously during `PlayerDeathEvent`.
+If another plugin already cleared it, a deeply copied pre-damage snapshot no older than one second is used as a fallback.
+New backups store 36 main slots, four armor slots, offhand, level and experience. Item conversion happens on the server thread; disk I/O uses a bounded worker pool.
 
 ### File Structure
 
@@ -229,3 +228,27 @@ For issues, questions, or suggestions, visit https://sterra.online or contact zf
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Storage safety and upgrades
+
+New backups use `format-version: 3` and NBT item bytes with the Minecraft data version.
+The UUID folder layout remains `storage-version: 2`. Legacy ObjectStream backups are read through a size-limited filter; existing archives are not rewritten.
+A one-time `pre-nbt-upgrade-<timestamp>.zip` of the plugin data is created before enabling new-format writes.
+Keep this archive separately before downgrading. New backups cannot be read by old plugin releases, and backups from newer Minecraft data versions cannot be restored on an older server.
+
+Corrupt or incomplete backups are rejected before inventory changes. Files are flushed to a temporary file and replaced atomically where supported; non-atomic filesystems retain `<filename>.previous` for recovery.
+If a replacement is interrupted, stop the server and inspect/restore that previous copy before restarting.
+Pending restores are saved before queue success, kept until applied, and protect their backups from retention cleanup.
+Failed pending entries are visible using `/inv <player> pending`; explicitly deleting a backup cancels its pending references.
+
+There is no transaction across Minecraft player saves and plugin files. A hard crash after applying a restore but before persisting its removal may replay it on the next join.
+Configuration reload validates the complete candidate first; invalid settings retain the active configuration. Timer and update-check settings are refreshed on success.
+
+## Verification
+
+`mvn clean verify` runs unit and MockBukkit regression tests and produces the plugin JAR.
+`mvn clean package -Pserver-tests` additionally builds a disposable-server test plugin.
+Run `python tests/run_servers.py --java21 <java21-path> --java25 <java25-path>` for the Purpur server matrix.
+The runner downloads pinned server builds into `target/server-tests/`, starts localhost-only test servers, and records build numbers, SHA-256 and logs.
+It writes `eula=true` in those disposable servers; running it requires agreement to the Minecraft server EULA.
+The server-test plugin must never be installed on a production server: it shuts down its server after the tests.

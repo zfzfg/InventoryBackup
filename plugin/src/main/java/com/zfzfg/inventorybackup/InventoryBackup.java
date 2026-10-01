@@ -27,6 +27,8 @@ public class InventoryBackup extends JavaPlugin {
     /** How often the name index and the pending queue are flushed to disk. */
     private static final long PERSISTENCE_FLUSH_TICKS = 20L * 60 * 5;
 
+    private volatile org.bukkit.configuration.file.FileConfiguration activeConfig;
+    private BukkitTask cacheTask;
     private InventoryManager inventoryManager;
     private FileCleanupTask cleanupTask;
     private BukkitTask persistenceTask;
@@ -41,6 +43,16 @@ public class InventoryBackup extends JavaPlugin {
     public void onEnable() {
         // Create plugin folder and inventories subfolder
         saveDefaultConfig();
+        try {
+            org.bukkit.configuration.file.YamlConfiguration candidate = new org.bukkit.configuration.file.YamlConfiguration();
+            candidate.load(new File(getDataFolder(), "config.yml"));
+            validateConfig(candidate);
+            activeConfig = candidate;
+            backupBeforeFormatUpgrade();
+        } catch (Exception error) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Cannot initialize InventoryBackup safely", error);
+            getServer().getPluginManager().disablePlugin(this); return;
+        }
 
         // Sprachtexte: erst die Altbestaende aus der config.yml holen,
         // dann das Bundle laden -- sonst laeuft die Migration ins Leere.
@@ -88,15 +100,10 @@ public class InventoryBackup extends JavaPlugin {
         startCleanupTask();
         startPersistenceTask();
 
-        // Clean damage cache periodically (default 30 seconds)
-        int cacheIntervalSeconds = getConfig().getInt("cache-cleanup-interval", 30);
-        long cacheIntervalTicks = cacheIntervalSeconds * 20L;
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
-            if (damageListener != null) {
-                damageListener.cleanOldCache();
-            }
-        }, cacheIntervalTicks, cacheIntervalTicks);
+        startCacheTask();
+        apiService.background(() -> { inventoryManager.initializeFileNames(); return true; });
 
+        // Clean damage cache periodically (default 30 seconds)
         // Der Checker wird IMMER angelegt -- sonst ist er null, sobald jemand
         // check-on-startup abschaltet, und der version-Befehl stuerzt ab.
         // Nur der automatische Start-Abruf haengt an der Konfiguration.
@@ -125,6 +132,11 @@ public class InventoryBackup extends JavaPlugin {
             persistenceTask.cancel();
         }
 
+        if (cacheTask != null) cacheTask.cancel();
+        if (updateChecker != null) updateChecker.close();
+        getServer().getScheduler().cancelTasks(this);
+        if (apiService != null) apiService.shutdown();
+
         // Null when onEnable failed before the service was built.
         if (apiService != null) {
             getServer().getServicesManager().unregister(InventoryBackupAPI.class, apiService);
@@ -133,15 +145,26 @@ public class InventoryBackup extends JavaPlugin {
         // Synchronous on purpose: the scheduler is already shutting down, so a
         // task scheduled here would never run and the queue would be lost.
         if (playerIndex != null) {
-            playerIndex.saveIfDirty();
+            try { playerIndex.saveIfDirty(); } catch (RuntimeException error) { getLogger().log(java.util.logging.Level.SEVERE, "Final name index save failed", error); }
         }
         if (pendingRestores != null) {
-            pendingRestores.saveIfDirty();
+            try { pendingRestores.saveIfDirty(); } catch (RuntimeException error) { getLogger().log(java.util.logging.Level.SEVERE, "Final pending save failed", error); }
         }
 
         if (languageManager != null) {
             getLogger().info(languageManager.getConsoleMsg("plugin-disabled"));
         }
+    }
+
+    private void startCacheTask() {
+        int cacheIntervalSeconds = getConfig().getInt("cache-cleanup-interval", 30);
+        long cacheIntervalTicks = cacheIntervalSeconds * 20L;
+        cacheTask = getServer().getScheduler().runTaskTimer(this, () -> {
+            if (damageListener != null) {
+                damageListener.cleanOldCache();
+            }
+        }, cacheIntervalTicks, cacheIntervalTicks);
+
     }
 
     private void startCleanupTask() {
@@ -152,7 +175,7 @@ public class InventoryBackup extends JavaPlugin {
             long intervalTicks = intervalHours * 60L * 60 * 20;
 
             cleanupTask = new FileCleanupTask(this);
-            cleanupTask.runTaskTimerAsynchronously(this, intervalTicks, intervalTicks);
+            cleanupTask.runTaskTimer(this, intervalTicks, intervalTicks);
 
             getLogger().info(languageManager.getConsoleMsg("cleanup-task-started",
                     "hours", String.valueOf(intervalHours)));
@@ -167,7 +190,7 @@ public class InventoryBackup extends JavaPlugin {
      * losing the queue because auto-deletion is off would be a nasty surprise.
      */
     private void startPersistenceTask() {
-        persistenceTask = getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+        persistenceTask = getServer().getScheduler().runTaskTimer(this, () -> apiService.background(() -> {
             playerIndex.saveIfDirty();
 
             int expired = pendingRestores.purgeExpired();
@@ -176,7 +199,8 @@ public class InventoryBackup extends JavaPlugin {
                         "pending-expired", "count", String.valueOf(expired)));
             }
             pendingRestores.saveIfDirty();
-        }, PERSISTENCE_FLUSH_TICKS, PERSISTENCE_FLUSH_TICKS);
+            return true;
+        }).exceptionally(error -> { getLogger().log(java.util.logging.Level.WARNING, "Persistence flush failed", error); return false; }), PERSISTENCE_FLUSH_TICKS, PERSISTENCE_FLUSH_TICKS);
     }
 
     public PlayerDamageListener getDamageListener() {
@@ -217,8 +241,72 @@ public class InventoryBackup extends JavaPlugin {
      * /inv lang.
      */
     public void reloadAll() {
-        reloadConfig();
-        languageManager.reload();
+        org.bukkit.configuration.file.YamlConfiguration candidate = new org.bukkit.configuration.file.YamlConfiguration();
+        try { candidate.load(new File(getDataFolder(), "config.yml")); validateConfig(candidate); }
+        catch (Exception error) { throw new IllegalArgumentException("Configuration rejected; previous settings retained", error); }
+        org.bukkit.configuration.file.FileConfiguration previous = activeConfig;
+        activeConfig = candidate;
+        try { languageManager.reload(); }
+        catch (RuntimeException error) { activeConfig = previous; languageManager.reload(); throw error; }
+        if (cleanupTask != null) { cleanupTask.cancel(); cleanupTask = null; }
+        if (cacheTask != null) cacheTask.cancel();
+        startCleanupTask(); startCacheTask();
+        if (updateChecker != null) updateChecker.close();
+        updateChecker = new UpdateChecker(this, getConfig().getString("update-check.modrinth-project-id", "rpKY25cW"),
+                getConfig().getString("update-check.contact", "zfzfg@sterra.online"), getConfig().getBoolean("update-check.stable-only", true));
+    }
+
+    @Override
+    public org.bukkit.configuration.file.FileConfiguration getConfig() {
+        return activeConfig == null ? super.getConfig() : activeConfig;
+    }
+
+    @Override
+    public void saveConfig() {
+        if (activeConfig == null) { super.saveConfig(); return; }
+        try { com.zfzfg.inventorybackup.utils.AtomicFiles.write(new File(getDataFolder(), "config.yml").toPath(), activeConfig.saveToString()); }
+        catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
+    }
+
+    private static void validateConfig(org.bukkit.configuration.file.FileConfiguration config) {
+        java.util.Map<String, Integer> minimums = java.util.Map.of("auto-delete-days", 0, "cleanup-interval-hours", 1,
+                "cache-cleanup-interval", 1, "pending-restore-expiry-days", 0);
+        java.util.Map<String, Integer> defaults = java.util.Map.of("auto-delete-days", 30, "cleanup-interval-hours", 24,
+                "cache-cleanup-interval", 30, "pending-restore-expiry-days", 30);
+        minimums.forEach((key, minimum) -> {
+            if (!config.contains(key)) config.set(key, defaults.get(key));
+            if (!config.isInt(key) || config.getInt(key) < minimum || config.getInt(key) > 365000)
+                throw new IllegalArgumentException("Invalid " + key);
+        });
+        for (String key : java.util.List.of("save-on-death", "notify-on-backup", "notify-ops-only", "update-check.enabled",
+                "update-check.check-on-startup", "update-check.notify-admins-on-join", "update-check.stable-only")) {
+            if (!config.contains(key)) config.set(key, true);
+            if (!config.isBoolean(key)) throw new IllegalArgumentException("Invalid boolean: " + key);
+        }
+        if (!java.util.List.of("en", "de").contains(config.getString("language", "en"))) throw new IllegalArgumentException("Invalid language");
+        if (config.contains("update-check.startup-delay-ticks") && (!(config.get("update-check.startup-delay-ticks") instanceof Number)
+                || config.getLong("update-check.startup-delay-ticks") < 0 || config.getLong("update-check.startup-delay-ticks") > 72000))
+            throw new IllegalArgumentException("Invalid update delay");
+        if (!config.getString("update-check.modrinth-project-id", "rpKY25cW").matches("[A-Za-z0-9_-]+"))
+            throw new IllegalArgumentException("Invalid Modrinth project id");
+        String contact = config.getString("update-check.contact", "zfzfg@sterra.online");
+        if (contact.contains("\r") || contact.contains("\n")) throw new IllegalArgumentException("Invalid contact");
+    }
+
+    private void backupBeforeFormatUpgrade() throws java.io.IOException {
+        java.nio.file.Path marker = getDataFolder().toPath().resolve(".nbt-format-backup-complete");
+        if (java.nio.file.Files.exists(marker)) return;
+        java.nio.file.Path archive = getDataFolder().toPath().resolve("pre-nbt-upgrade-" + System.currentTimeMillis() + ".zip");
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(java.nio.file.Files.newOutputStream(archive));
+                java.util.stream.Stream<java.nio.file.Path> paths = java.nio.file.Files.walk(getDataFolder().toPath())) {
+            for (java.nio.file.Path path : paths.filter(java.nio.file.Files::isRegularFile).toList()) {
+                if (path.equals(archive) || path.getFileName().toString().startsWith("pre-nbt-upgrade-")) continue;
+                if (java.nio.file.Files.isSymbolicLink(path)) throw new java.io.IOException("Cannot safely back up symlink " + path);
+                zip.putNextEntry(new java.util.zip.ZipEntry(getDataFolder().toPath().relativize(path).toString().replace('\\', '/')));
+                java.nio.file.Files.copy(path, zip); zip.closeEntry();
+            }
+        }
+        com.zfzfg.inventorybackup.utils.AtomicFiles.write(marker, archive.getFileName().toString());
     }
 
     /**

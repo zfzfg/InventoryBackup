@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.zfzfg</groupId>
         <artifactId>InventoryBackup-parent</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
     </parent>
 
     <artifactId>InventoryBackup</artifactId>
@@ -30,8 +30,8 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
         </dependency>
         <!--
             Used by UpdateChecker. Ships with the server (Spigot bundles it), so
@@ -47,6 +47,12 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mockbukkit.mockbukkit</groupId>
+            <artifactId>mockbukkit-v1.21</artifactId>
+            <version>4.76.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

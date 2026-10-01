@@ -1,0 +1,59 @@
+[
+  {
+    "version": "1.21.8",
+    "build": "2497",
+    "passed": true,
+    "sha256": "dd7b227f2555601c39cec091df678275f0a81fa7ed68ce954ec4924bb4575c46",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "1.21.9",
+    "build": "2505",
+    "passed": true,
+    "sha256": "53cd77c09870120fe74d4808ba54dd22c95b1f177d4e9db03ec1a6d0c43bafbd",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "1.21.10",
+    "build": "2535",
+    "passed": true,
+    "sha256": "4159783677b08b6395782e6150cb28646c70ed988b7948c09e01aa5a5e90f548",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "1.21.11",
+    "build": "2568",
+    "passed": true,
+    "sha256": "ee199511bf0a970ee8459fe3a351703fec37293f00bc2de1c5cb746c7e4acc34",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "26.1.2",
+    "build": "2592",
+    "passed": true,
+    "sha256": "d88e3826a7f3ad3cb4b07be02fc732ba732bf1a1b113d96b605e9f8d1d119608",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "26.2",
+    "build": "2633",
+    "passed": true,
+    "sha256": "41f7c0535c1cec47ede48d25c8d9bd7f053d4dc44f87293e5a007314dbcfc32c",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "26.3",
+    "build": "2642",
+    "passed": true,
+    "sha256": "cc076214fc856f55e52f7fe83e12fb4361de09677f5c89dcaf024a2a582cdb50",
+    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+  },
+  {
+    "version": "26.3",
+    "build": "2642",
+    "passed": true,
+    "upgrade_passed": true,
+    "sha256": "cc076214fc856f55e52f7fe83e12fb4361de09677f5c89dcaf024a2a582cdb50",
+    "plugin_sha256": "a52ca3cec1fc0209778705228d6c6a6930cdd45dea247400a37acc3a29900cb1"
+  }
+]
