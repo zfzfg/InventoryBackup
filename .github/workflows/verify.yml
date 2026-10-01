@@ -9,6 +9,7 @@ jobs:
         with: {distribution: temurin, java-version: '21', cache: maven}
       - run: mvn -B -ntp clean verify
       - run: python tests/check_package.py
+      - run: python tests/check_fixtures.py
       - uses: actions/upload-artifact@v4
         with: {name: InventoryBackup, path: plugin/target/InventoryBackup-0.2.0.jar}
   server:
@@ -29,10 +30,35 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '${{ matrix.java }}'
+          java-version: '21'
           cache: maven
-      - run: mvn -B -ntp clean package -Pserver-tests
-      - run: python tests/run_servers.py --versions 1.21.8 '${{ matrix.minecraft }}'
+      - name: Remember Java 21 runtime
+        run: echo "JAVA21_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+      - name: Build with Java 21
+        run: mvn -B -ntp clean package -Pserver-tests
+      - name: Set up Java 25 for Minecraft 26.x
+        if: matrix.java == '25'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Run servers with their required Java versions
+        run: >-
+          python tests/run_servers.py
+          --platforms spigot paper purpur
+          --versions 1.21.8 '${{ matrix.minecraft }}'
+          --java21 "$JAVA21_HOME/bin/java"
+          --java25 "$JAVA_HOME/bin/java"
+          --historical-data tests/fixtures/0.0.7/data
+      - name: Verify the original 0.1.0 archive
+        run: >-
+          python tests/run_servers.py
+          --no-transfers
+          --platforms spigot paper purpur
+          --versions '${{ matrix.minecraft }}'
+          --java21 "$JAVA21_HOME/bin/java"
+          --java25 "$JAVA_HOME/bin/java"
+          --historical-data tests/fixtures/0.1.0/data
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -40,3 +66,26 @@ jobs:
           path: |
             target/server-tests/**/results.json
             target/server-tests/**/console.log
+            target/server-tests/**/*.log
+            target/spigot-build/**/builder.log
+  clients:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [spigot, paper, purpur]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '21', cache: maven}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: tests/clients/package-lock.json}
+      - run: mvn -B -ntp clean package -Pclient-tests
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: tests/clients
+      - run: python tests/run_clients.py --platforms '${{ matrix.platform }}' --java21 "$JAVA_HOME/bin/java"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clients-${{ matrix.platform }}
+          path: target/client-tests/**

@@ -15,3 +15,6 @@ Thumbs.db
 
 .test-cache/
 target-last-build.log
+__pycache__/
+*.pyc
+node_modules/

@@ -17,6 +17,12 @@
     <description>Saves player inventories on death and provides restore functionality</description>
 
     <dependencies>
+        <!-- Tests use Paper's runtime surface; production still compiles against Spigot only. -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!--
             compile scope on purpose: the shade plugin bakes the API classes into
             the plugin jar so the server has them at runtime. Deliberately NOT
@@ -30,8 +36,8 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
         </dependency>
         <!--
             Used by UpdateChecker. Ships with the server (Spigot bundles it), so

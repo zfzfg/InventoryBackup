@@ -1,0 +1,17 @@
+{
+  "release": "0.0.7",
+  "exported_at_utc": "2026-10-01T04:51:57Z",
+  "plugin_filename": "InventoryBackup-0.0.7.jar",
+  "plugin_sha256": "09f16424075350c6590045a9a4afe660b89d23477521411f48ad3eda79ea62c4",
+  "server": "Purpur",
+  "minecraft": "1.20.1",
+  "build": "2062",
+  "server_sha256": "238e64b33e5c7c9b87506cf1a23f239e6ce7fb71edd9d31837f229c94f4dfa1a",
+  "generator": "InventoryBackup-HistoricalFixtures",
+  "generator_sha256": "0fba64e5465785ad3b977b2cd863e28559db560fd4386832853f81e8457efdcd",
+  "files": {
+    "config.yml": "aba46fba16e9c28a3ebc1f9cfef8c4454dbce3689b265239cdc4bcd503b61db3",
+    "messages_en.yml": "5bb3c8dd8fd2c8d7d267d8f8170137b49d809ee5325757995532ef01664f089a",
+    "inventories/Historical/2026-10-01_06-51-56_historical.yml": "f9c856fd1a6a81656a1030f5da940b9f930b54a2950f2ce64feec7d9073f9011"
+  }
+}

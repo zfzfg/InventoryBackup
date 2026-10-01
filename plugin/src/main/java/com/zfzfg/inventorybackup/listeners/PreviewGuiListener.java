@@ -21,7 +21,8 @@ public class PreviewGuiListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (isPreview(event.getInventory())) {
+        if (isPreview(event.getInventory())
+                || isPreview(event.getWhoClicked().getOpenInventory().getTopInventory())) {
             event.setCancelled(true);
         }
     }

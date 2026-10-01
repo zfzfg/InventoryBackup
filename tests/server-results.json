@@ -1,59 +1,530 @@
-[
-  {
-    "version": "1.21.8",
-    "build": "2497",
-    "passed": true,
-    "sha256": "dd7b227f2555601c39cec091df678275f0a81fa7ed68ce954ec4924bb4575c46",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
+{
+  "checked_on": "2026-10-01",
+  "plugin_version": "0.2.0",
+  "plugin_sha256": "f462f9a7bf804bf2025ea928fd2ebdddcc1924305f2b7f69d0e266119c5516b3",
+  "unit_tests": {
+    "passed": 55,
+    "failed": 0,
+    "skipped": 0
   },
-  {
-    "version": "1.21.9",
-    "build": "2505",
-    "passed": true,
-    "sha256": "53cd77c09870120fe74d4808ba54dd22c95b1f177d4e9db03ec1a6d0c43bafbd",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
-  },
-  {
-    "version": "1.21.10",
-    "build": "2535",
-    "passed": true,
-    "sha256": "4159783677b08b6395782e6150cb28646c70ed988b7948c09e01aa5a5e90f548",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
-  },
-  {
-    "version": "1.21.11",
-    "build": "2568",
-    "passed": true,
-    "sha256": "ee199511bf0a970ee8459fe3a351703fec37293f00bc2de1c5cb746c7e4acc34",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
-  },
-  {
-    "version": "26.1.2",
-    "build": "2592",
-    "passed": true,
-    "sha256": "d88e3826a7f3ad3cb4b07be02fc732ba732bf1a1b113d96b605e9f8d1d119608",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
-  },
-  {
-    "version": "26.2",
-    "build": "2633",
-    "passed": true,
-    "sha256": "41f7c0535c1cec47ede48d25c8d9bd7f053d4dc44f87293e5a007314dbcfc32c",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
-  },
-  {
-    "version": "26.3",
-    "build": "2642",
-    "passed": true,
-    "sha256": "cc076214fc856f55e52f7fe83e12fb4361de09677f5c89dcaf024a2a582cdb50",
-    "plugin_sha256": "dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f"
-  },
-  {
-    "version": "26.3",
-    "build": "2642",
-    "passed": true,
-    "upgrade_passed": true,
-    "sha256": "cc076214fc856f55e52f7fe83e12fb4361de09677f5c89dcaf024a2a582cdb50",
-    "plugin_sha256": "a52ca3cec1fc0209778705228d6c6a6930cdd45dea247400a37acc3a29900cb1"
-  }
-]
+  "package_checks": "passed",
+  "fixture_checksums": "passed",
+  "server_runs_passed": 60,
+  "transfer_payloads_verified": 89,
+  "full_evidence": [
+    "target/server-tests/1790832823647016000/results.json",
+    "target/server-tests/1790832833455733500/results.json",
+    "target/client-tests/1790832843686709400/results.json"
+  ],
+  "matrix": [
+    {
+      "platform": "spigot",
+      "minecraft": "1.21.8",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "spigot_commit": "7c52c662ccee93e52a21c54a1b8f93721e4ec773",
+        "buildtools_version": 181,
+        "minecraft_version": "1.21.8",
+        "api_version": "1.21.8-R0.1-SNAPSHOT"
+      },
+      "server_sha256": "0846c55e6a5f7569eae62deba0924024cb2e3828abc9c44278a5eae7c63e9c2d",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 0,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/spigot-1.21.8-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/spigot-1.21.8-write.log",
+        "transfers": "target/server-tests/1790832823647016000/spigot-1.21.8-transfer.log"
+      }
+    },
+    {
+      "platform": "paper",
+      "minecraft": "1.21.8",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": 60
+      },
+      "server_sha256": "8de7c52c3b02403503d16fac58003f1efef7dd7a0256786843927fa92ee57f1e",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 0,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-1.21.8-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-1.21.8-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-1.21.8-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "1.21.8",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": "2497"
+      },
+      "server_sha256": "dd7b227f2555601c39cec091df678275f0a81fa7ed68ce954ec4924bb4575c46",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 0,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-1.21.8-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-1.21.8-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-1.21.8-transfer.log"
+      }
+    },
+    {
+      "platform": "spigot",
+      "minecraft": "1.21.9",
+      "status": "unavailable",
+      "reason": "BuildTools resolves 1.21.9 to 1.21.10; no exact server artifact"
+    },
+    {
+      "platform": "paper",
+      "minecraft": "1.21.9",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": 59
+      },
+      "server_sha256": "aec002e77c7566e49494fdf05430b96078ffd1d7430e652d4f338fef951e7a10",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 1,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-1.21.9-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-1.21.9-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-1.21.9-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "1.21.9",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": "2505"
+      },
+      "server_sha256": "53cd77c09870120fe74d4808ba54dd22c95b1f177d4e9db03ec1a6d0c43bafbd",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 1,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-1.21.9-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-1.21.9-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-1.21.9-transfer.log"
+      }
+    },
+    {
+      "platform": "spigot",
+      "minecraft": "1.21.10",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "spigot_commit": "6e369ba56125a52a628785448c15afa062a76932",
+        "buildtools_version": 181,
+        "minecraft_version": "1.21.10",
+        "api_version": "1.21.10-R0.1-SNAPSHOT"
+      },
+      "server_sha256": "016372b162a5da63eae6218c875dab1e6a46868b7b4899b33a845bea9f8e09b8",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/spigot-1.21.10-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/spigot-1.21.10-write.log",
+        "transfers": "target/server-tests/1790832823647016000/spigot-1.21.10-transfer.log"
+      }
+    },
+    {
+      "platform": "paper",
+      "minecraft": "1.21.10",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": 130
+      },
+      "server_sha256": "158703f75a26f842ea656b3dc6d75bf3d1ec176b97a2c36384d0b80b3871af53",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-1.21.10-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-1.21.10-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-1.21.10-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "1.21.10",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": "2535"
+      },
+      "server_sha256": "4159783677b08b6395782e6150cb28646c70ed988b7948c09e01aa5a5e90f548",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-1.21.10-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-1.21.10-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-1.21.10-transfer.log"
+      }
+    },
+    {
+      "platform": "spigot",
+      "minecraft": "1.21.11",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "spigot_commit": "56165cab196da9518bcb05be7183420eaf261410",
+        "buildtools_version": 197,
+        "minecraft_version": "1.21.11_unobfuscated",
+        "api_version": "1.21.11-R0.2-SNAPSHOT"
+      },
+      "server_sha256": "da8b3f6e150d2da80e8a25a230c0344494a36001aa6ed2e8e527dfae3c58db5f",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/spigot-1.21.11-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/spigot-1.21.11-write.log",
+        "transfers": "target/server-tests/1790832823647016000/spigot-1.21.11-transfer.log"
+      }
+    },
+    {
+      "platform": "paper",
+      "minecraft": "1.21.11",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": 132
+      },
+      "server_sha256": "5ffef465eeeb5f2a3c23a24419d97c51afd7dbb4923ff42df9a3f58bba1ccfba",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-1.21.11-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-1.21.11-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-1.21.11-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "1.21.11",
+      "java": 21,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": "2568"
+      },
+      "server_sha256": "ee199511bf0a970ee8459fe3a351703fec37293f00bc2de1c5cb746c7e4acc34",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-1.21.11-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-1.21.11-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-1.21.11-transfer.log"
+      }
+    },
+    {
+      "platform": "spigot",
+      "minecraft": "26.1.2",
+      "java": 25,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "spigot_commit": "566f9723ddc5625b20aaa5f7acee9e8328ba5399",
+        "buildtools_version": 197,
+        "minecraft_version": "26.1.2",
+        "api_version": "26.1.2-R0.1-SNAPSHOT"
+      },
+      "server_sha256": "67ad88a82570f51516faa7b0d19b24079aca8ae85da488a408ea464a26767fed",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/spigot-26.1.2-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/spigot-26.1.2-write.log",
+        "transfers": "target/server-tests/1790832823647016000/spigot-26.1.2-transfer.log"
+      }
+    },
+    {
+      "platform": "paper",
+      "minecraft": "26.1.2",
+      "java": 25,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": 74
+      },
+      "server_sha256": "1d70b1dab9cf4a6de615209a536f3a45a2186240253c428213ce2188ab95e5f7",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-26.1.2-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-26.1.2-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-26.1.2-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "26.1.2",
+      "java": 25,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": "2592"
+      },
+      "server_sha256": "d88e3826a7f3ad3cb4b07be02fc732ba732bf1a1b113d96b605e9f8d1d119608",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-26.1.2-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-26.1.2-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-26.1.2-transfer.log"
+      }
+    },
+    {
+      "platform": "spigot",
+      "minecraft": "26.2",
+      "java": 25,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "spigot_commit": "8db49a2b72ef138a615856934957da2978f72f08",
+        "buildtools_version": 197,
+        "minecraft_version": "26.2",
+        "api_version": "26.2-R0.1-SNAPSHOT"
+      },
+      "server_sha256": "a880aea1313cc2c29d67a448cba37bb7314195d3c602519374ada35efc0ff4bb",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/spigot-26.2-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/spigot-26.2-write.log",
+        "transfers": "target/server-tests/1790832823647016000/spigot-26.2-transfer.log"
+      }
+    },
+    {
+      "platform": "paper",
+      "minecraft": "26.2",
+      "java": 25,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": 129
+      },
+      "server_sha256": "b1d8f6bfa1b6101fa8e947b53041cb3bdf5540e7b83b6547ca19ba7edefeb083",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-26.2-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-26.2-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-26.2-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "26.2",
+      "java": 25,
+      "status": "passed",
+      "experimental": false,
+      "build": {
+        "build": "2633"
+      },
+      "server_sha256": "41f7c0535c1cec47ede48d25c8d9bd7f053d4dc44f87293e5a007314dbcfc32c",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-26.2-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-26.2-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-26.2-transfer.log"
+      }
+    },
+    {
+      "platform": "spigot",
+      "minecraft": "26.3",
+      "java": 25,
+      "status": "passed",
+      "experimental": true,
+      "build": {
+        "spigot_commit": "766de51ecdbdcd8d67ebb8d045033dd6a945a35f",
+        "buildtools_version": 197,
+        "minecraft_version": "26.3",
+        "api_version": "26.3-R0.1-SNAPSHOT"
+      },
+      "server_sha256": "bbb0ba65e9b1a5443c9f9be9c1ee111c3c306cf61ed69d217db59463fff3b36b",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/spigot-26.3-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/spigot-26.3-write.log",
+        "transfers": "target/server-tests/1790832823647016000/spigot-26.3-transfer.log"
+      }
+    },
+    {
+      "platform": "paper",
+      "minecraft": "26.3",
+      "java": 25,
+      "status": "passed",
+      "experimental": true,
+      "build": {
+        "build": 140
+      },
+      "server_sha256": "98aabc113a80b9b5e183475e839a17cf99c39c915a1f46b8f35a5e89fd5de0f1",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/paper-26.3-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/paper-26.3-write.log",
+        "transfers": "target/server-tests/1790832823647016000/paper-26.3-transfer.log"
+      }
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "26.3",
+      "java": 25,
+      "status": "passed",
+      "experimental": true,
+      "build": {
+        "build": "2642"
+      },
+      "server_sha256": "cc076214fc856f55e52f7fe83e12fb4361de09677f5c89dcaf024a2a582cdb50",
+      "historical": {
+        "0.0.7": true,
+        "0.1.0": true
+      },
+      "same_version_transfer_inputs": 2,
+      "baseline_upgrade_inputs": 3,
+      "logs": {
+        "0.0.7": "target/server-tests/1790832823647016000/purpur-26.3-write.log",
+        "0.1.0": "target/server-tests/1790832833455733500/purpur-26.3-write.log",
+        "transfers": "target/server-tests/1790832823647016000/purpur-26.3-transfer.log"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "platform": "spigot",
+      "minecraft": "1.21.8",
+      "passed": true,
+      "checks": [
+        "8 vanilla deaths with both keepInventory settings",
+        "survival and creative preview packets",
+        "offline queue cancel/replace and reconnect"
+      ],
+      "log": "target/client-tests/1790832843686709400/spigot.log",
+      "client_log": "target/client-tests/1790832843686709400/spigot-clients.log"
+    },
+    {
+      "platform": "paper",
+      "minecraft": "1.21.8",
+      "passed": true,
+      "checks": [
+        "8 vanilla deaths with both keepInventory settings",
+        "survival and creative preview packets",
+        "offline queue cancel/replace and reconnect"
+      ],
+      "log": "target/client-tests/1790832843686709400/paper.log",
+      "client_log": "target/client-tests/1790832843686709400/paper-clients.log"
+    },
+    {
+      "platform": "purpur",
+      "minecraft": "1.21.8",
+      "passed": true,
+      "checks": [
+        "8 vanilla deaths with both keepInventory settings",
+        "survival and creative preview packets",
+        "offline queue cancel/replace and reconnect"
+      ],
+      "log": "target/client-tests/1790832843686709400/purpur.log",
+      "client_log": "target/client-tests/1790832843686709400/purpur-clients.log"
+    }
+  ],
+  "limits": [
+    "Spigot 1.21.9 unavailable: official BuildTools resolves to 1.21.10",
+    "26.3 experimental",
+    "Real protocol clients verified only on 1.21.8",
+    "No production deployment or remote CI run",
+    "Representative original-release fixtures; not universal historical archive coverage"
+  ]
+}

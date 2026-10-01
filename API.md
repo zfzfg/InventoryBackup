@@ -4,7 +4,7 @@ Create, list, restore and delete inventory backups from your own plugin, and hoo
 into every backup the plugin takes on its own.
 
 - **Artifact:** `com.zfzfg:InventoryBackup-API:0.2.0`
-- **Requires:** Java 21 bytecode, Purpur 1.21.8–26.3 (Java 25 runtime on 26.1+)
+- **Requires:** Java 21 bytecode, tested Spigot/Paper/Purpur targets from 1.21.8–26.3 (Java 25 runtime on 26.1+); see [COMPATIBILITY.md](COMPATIBILITY.md)
 - **API version:** 2 (`InventoryBackupAPI.API_VERSION`)
 
 ---

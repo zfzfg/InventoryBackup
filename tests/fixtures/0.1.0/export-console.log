@@ -1,0 +1,86 @@
+Downloading mojang_1.20.1.jar
+Applying patches
+Starting org.bukkit.craftbukkit.Main
+System Info: Java 17 (OpenJDK 64-Bit Server VM 17.0.20.1+1) Host: Windows 11 10.0 (amd64)
+Loading libraries, please wait...
+2026-10-01 06:52:49,805 ServerMain WARN Advanced terminal features are not available in this environment
+[06:52:52 INFO]: Environment: authHost='https://authserver.mojang.com', accountsHost='https://api.mojang.com', sessionHost='https://sessionserver.mojang.com', servicesHost='https://api.minecraftservices.com', name='PROD'
+[06:52:52 INFO]: Found new data pack file/bukkit, loading it automatically
+[06:52:53 ERROR]: No key layers in MapLike[{}]
+[06:52:53 INFO]: Loaded 7 recipes
+[06:52:53 INFO]: Starting minecraft server version 1.20.1
+[06:52:53 INFO]: Loading properties
+[06:52:53 INFO]: This server is running Purpur version git-Purpur-2062 (MC: 1.20.1) (Implementing API version 1.20.1-R0.1-SNAPSHOT) (Git: f6fd5f6 on HEAD)
+[06:52:54 INFO]: Server Ping Player Sample Count: 12
+[06:52:54 INFO]: Using 4 threads for Netty based IO
+[06:52:54 INFO]: [ChunkTaskScheduler] Chunk system is using 1 I/O threads, 5 worker threads, and gen parallelism of 5 threads
+[06:52:54 WARN]: [Pufferfish] SIMD operations are available for your server, but are not configured!
+[06:52:54 WARN]: [Pufferfish] To enable additional optimizations, add "--add-modules=jdk.incubator.vector" to your startup flags, BEFORE the "-jar".
+[06:52:54 WARN]: [Pufferfish] If you have already added this flag, then SIMD operations are not supported on your JVM or CPU.
+[06:52:54 WARN]: [Pufferfish] Debug: Java: 17.0.20.1, test run: true
+[06:52:54 INFO]: Default game type: SURVIVAL
+[06:52:54 INFO]: Generating keypair
+[06:52:54 INFO]: Starting Minecraft server on 127.0.0.1:25799
+[06:52:54 INFO]: Using default channel type
+[06:52:54 INFO]: Paper: Using Java compression from Velocity.
+[06:52:54 INFO]: Paper: Using Java cipher from Velocity.
+[06:52:54 INFO]: [InventoryBackup] Loading server plugin InventoryBackup v0.1.0
+[06:52:54 INFO]: [spark] Loading server plugin spark v1.10.187
+[06:52:54 INFO]: [InventoryBackupHistoricalFixtures] Loading server plugin InventoryBackupHistoricalFixtures v1
+[06:52:54 WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[06:52:54 WARN]: The server will make no attempt to authenticate usernames. Beware.
+[06:52:54 WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[06:52:54 WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[06:52:54 INFO]: Preparing level "world"
+[06:52:54 ERROR]: No key layers in MapLike[{}]
+[06:52:55 ERROR]: No key layers in MapLike[{}]
+[06:52:55 ERROR]: No key layers in MapLike[{}]
+[06:52:55 INFO]: Preparing start region for dimension minecraft:overworld
+[06:52:55 INFO]: Time elapsed: 11 ms
+[06:52:55 INFO]: Preparing start region for dimension minecraft:the_nether
+[06:52:55 INFO]: Time elapsed: 4 ms
+[06:52:55 INFO]: Preparing start region for dimension minecraft:the_end
+[06:52:55 INFO]: Time elapsed: 6 ms
+[06:52:55 INFO]: [InventoryBackup] Enabling InventoryBackup v0.1.0
+[06:52:55 INFO]: [InventoryBackup] Loaded messages for language 'en' (messages_en.yml)
+[06:52:55 INFO]: [InventoryBackup] Auto-deletion is disabled.
+[06:52:55 INFO]: [InventoryBackup] Developer API registered (version 1).
+[06:52:55 INFO]: [InventoryBackup] InventoryBackup has been enabled!
+[06:52:55 INFO]: [spark] Enabling spark v1.10.187
+[06:52:56 INFO]: [spark] Using Paper ServerTickStartEvent for tick monitoring
+[06:52:56 INFO]: [spark] Starting background profiler...
+[06:52:56 INFO]: [spark] The async-profiler engine is not supported for your os/arch (windows11/amd64), so the built-in Java engine will be used instead.
+[06:52:56 INFO]: [InventoryBackupHistoricalFixtures] Enabling InventoryBackupHistoricalFixtures v1
+[06:52:56 INFO]: Running delayed init tasks
+[06:52:56 INFO]: Done (2.633s)! For help, type "help"
+[06:52:57 INFO]: [InventoryBackupHistoricalFixtures] INVENTORYBACKUP_HISTORICAL_EXPORT_PASS
+[06:52:57 INFO]: Stopping server
+[06:52:57 INFO]: [InventoryBackupHistoricalFixtures] Disabling InventoryBackupHistoricalFixtures v1
+[06:52:57 INFO]: [spark] Disabling spark v1.10.187
+[06:52:57 INFO]: [InventoryBackup] Disabling InventoryBackup v0.1.0
+[06:52:57 INFO]: [InventoryBackup] InventoryBackup has been disabled!
+[06:52:57 INFO]: Saving players
+[06:52:57 INFO]: Saving worlds
+[06:52:57 INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[06:52:57 INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'world'
+[06:52:57 INFO]: [ChunkHolderManager] Halted chunk system for world 'world'
+[06:52:57 INFO]: [ChunkHolderManager] Saving all chunkholders for world 'world'
+[06:52:57 INFO]: [ChunkHolderManager] Saved 961 block chunks, 81 entity chunks, 0 poi chunks in world 'world' in 0,24s
+[06:52:57 INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[06:52:57 INFO]: Saving chunks for level 'ServerLevel[world_nether]'/minecraft:the_nether
+[06:52:57 INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'world_nether'
+[06:52:57 INFO]: [ChunkHolderManager] Halted chunk system for world 'world_nether'
+[06:52:57 INFO]: [ChunkHolderManager] Saving all chunkholders for world 'world_nether'
+[06:52:58 INFO]: [ChunkHolderManager] Saved 961 block chunks, 81 entity chunks, 0 poi chunks in world 'world_nether' in 0,15s
+[06:52:58 INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[06:52:58 INFO]: Saving chunks for level 'ServerLevel[world_the_end]'/minecraft:the_end
+[06:52:58 INFO]: [ChunkHolderManager] Waiting 60s for chunk system to halt for world 'world_the_end'
+[06:52:58 INFO]: [ChunkHolderManager] Halted chunk system for world 'world_the_end'
+[06:52:58 INFO]: [ChunkHolderManager] Saving all chunkholders for world 'world_the_end'
+[06:52:58 INFO]: [ChunkHolderManager] Saved 961 block chunks, 81 entity chunks, 0 poi chunks in world 'world_the_end' in 0,09s
+[06:52:58 INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[06:52:58 INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[06:52:58 INFO]: Flushing Chunk IO
+[06:52:58 INFO]: Closing Thread Pool
+2026-10-01 06:52:58,151 Log4j2-AsyncAppenderEventDispatcher-1-Async WARN Advanced terminal features are not available in this environment
+[06:52:58 INFO]: Closing Server

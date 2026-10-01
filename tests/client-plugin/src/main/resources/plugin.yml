@@ -1,0 +1,8 @@
+name: InventoryBackupClientTests
+version: '1'
+main: com.zfzfg.inventorybackup.testing.ClientTests
+api-version: '1.21.8'
+depend: [InventoryBackup]
+commands:
+  ibclient:
+    description: Disposable localhost client test harness

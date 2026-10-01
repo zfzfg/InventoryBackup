@@ -1,0 +1,7 @@
+language: en
+auto-delete-days: 0
+cleanup-interval-hours: 24
+update-check:
+  enabled: false
+messages-migrated: true
+storage-version: 2

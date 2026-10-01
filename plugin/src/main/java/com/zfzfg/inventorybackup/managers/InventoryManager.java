@@ -130,10 +130,11 @@ public class InventoryManager {
 
             String[] encoded = main(() -> {
                 validateSnapshot(snapshot);
-                return new String[] { InventorySerializer.serializeInventory(snapshot.contents()),
-                        InventorySerializer.serializeInventory(snapshot.armor()),
-                        InventorySerializer.serializeItemStack(snapshot.offhand()),
-                        String.valueOf(org.bukkit.Bukkit.getUnsafe().getDataVersion()) };
+                var codec = plugin.getPlatform().itemCodec();
+                return new String[] { InventorySerializer.encodeInventory(snapshot.contents(), codec),
+                        InventorySerializer.encodeInventory(snapshot.armor(), codec),
+                        InventorySerializer.encodeItem(snapshot.offhand(), codec),
+                        String.valueOf(codec.dataVersion()) };
             });
             config.set("format-version", 3);
             config.set("data-version", Integer.parseInt(encoded[3]));
@@ -190,13 +191,14 @@ public class InventoryManager {
                 if (!owner.toString().equals(config.getString("uuid"))) throw new IllegalArgumentException("Owner mismatch");
                 if (format == 3 && (!config.isInt("data-version") || config.getInt("data-version") <= 0))
                     throw new IllegalArgumentException("Missing data version");
-                if (format == 3 && config.getInt("data-version") > org.bukkit.Bukkit.getUnsafe().getDataVersion())
+                if (format == 3 && config.getInt("data-version") > plugin.getPlatform().itemCodec().dataVersion())
                     throw new BackupReadException(com.zfzfg.inventorybackup.api.RestoreResult.INCOMPATIBLE_VERSION,
                             "Backup was created on a newer Minecraft version", null);
-                ItemStack[] contents = InventorySerializer.decodeInventory(config.getString("inventory"), format == 3);
+                var codec = format == 3 ? plugin.getPlatform().itemCodec() : null;
+                ItemStack[] contents = InventorySerializer.decodeInventory(config.getString("inventory"), codec);
                 if (format != 3 && contents.length == 41) contents = java.util.Arrays.copyOf(contents, 36);
-                ItemStack[] armor = InventorySerializer.decodeInventory(config.getString("armor"), format == 3);
-                ItemStack offhand = InventorySerializer.decodeItem(config.getString("offhand"), format == 3);
+                ItemStack[] armor = InventorySerializer.decodeInventory(config.getString("armor"), codec);
+                ItemStack offhand = InventorySerializer.decodeItem(config.getString("offhand"), codec);
                 if (!config.isInt("level") || !(config.get("exp") instanceof Number)) throw new IllegalArgumentException("Invalid XP fields");
                 BackupSnapshot snapshot = new BackupSnapshot(handle, contents, armor, offhand,
                         config.getInt("level"), (float) config.getDouble("exp"));

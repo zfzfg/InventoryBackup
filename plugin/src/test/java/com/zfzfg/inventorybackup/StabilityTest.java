@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class StabilityTest {
     ServerMock server;
     InventoryBackup plugin;
-    @BeforeEach void setup() { server = MockBukkit.mock(); plugin = MockBukkit.load(InventoryBackup.class); }
+    @BeforeEach void setup() { server = MockBukkit.mock(); plugin = MockBukkit.load(TestInventoryBackup.class); }
     @AfterEach void close() { MockBukkit.unmock(); }
     @Test void snapshotsDoNotShareItems() {
         ItemStack item = new ItemStack(Material.DIAMOND, 5);
@@ -22,6 +22,24 @@ class StabilityTest {
         BackupSnapshot snapshot = new BackupSnapshot(null, contents, new ItemStack[4], item, 2, .5f);
         item.setAmount(30); snapshot.contents()[0].setAmount(20); snapshot.offhand().setAmount(10);
         assertEquals(5, snapshot.contents()[0].getAmount()); assertEquals(5, snapshot.offhand().getAmount());
+    }
+    @Test void creativePacketsUsePlayerViewEvenWhilePreviewIsOpen() {
+        var player = server.addPlayer();
+        var originalView = player.getOpenInventory();
+        // MockBukkit's default view cannot convert slots; reproduce the player
+        // view attached to a creative packet without relying on that stub.
+        var defaultView = new org.mockbukkit.mockbukkit.inventory.SimpleInventoryViewMock(
+                player, originalView.getTopInventory(), player.getInventory(),
+                org.bukkit.event.inventory.InventoryType.CRAFTING) {
+            @Override public int convertSlot(int rawSlot) { return rawSlot == 36 ? 0 : rawSlot; }
+        };
+        var preview = com.zfzfg.inventorybackup.gui.PreviewHolder.build(
+                new BackupSnapshot(null, new ItemStack[36], new ItemStack[4], null, 0, 0), "Preview");
+        player.openInventory(preview);
+        var event = new org.bukkit.event.inventory.InventoryCreativeEvent(defaultView,
+                org.bukkit.event.inventory.InventoryType.SlotType.QUICKBAR, 36, new ItemStack(Material.DIAMOND));
+        server.getPluginManager().callEvent(event);
+        assertTrue(event.isCancelled());
     }
     @Test void invalidSnapshotCannotClearInventory() {
         var player = server.addPlayer(); player.getInventory().setItem(0, new ItemStack(Material.DIAMOND));

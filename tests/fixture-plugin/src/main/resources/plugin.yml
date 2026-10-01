@@ -1,0 +1,5 @@
+name: InventoryBackupHistoricalFixtures
+version: '1'
+main: com.zfzfg.inventorybackup.testing.HistoricalFixtures
+api-version: '1.20'
+depend: [InventoryBackup]

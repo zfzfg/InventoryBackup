@@ -38,9 +38,21 @@ public class InventoryBackup extends JavaPlugin {
     private PlayerIndex playerIndex;
     private PendingRestoreStore pendingRestores;
     private InventoryBackupService apiService;
+    private com.zfzfg.inventorybackup.platform.Platform platform;
+    public com.zfzfg.inventorybackup.platform.Platform getPlatform() { return platform; }
+    protected com.zfzfg.inventorybackup.platform.Platform detectPlatform() {
+        return com.zfzfg.inventorybackup.platform.Platform.detect();
+    }
 
     @Override
     public void onEnable() {
+        try {
+            platform = detectPlatform();
+            getLogger().info("Lossless NBT adapter: " + platform.name() + " " + platform.minecraftVersion());
+        } catch (RuntimeException error) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Cannot initialize lossless inventory storage; archive left untouched", error);
+            getServer().getPluginManager().disablePlugin(this); return;
+        }
         // Create plugin folder and inventories subfolder
         saveDefaultConfig();
         try {

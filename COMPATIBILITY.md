@@ -1,54 +1,57 @@
 # Compatibility verification — InventoryBackup 0.2.0
 
-Checked on 2026-10-01. All 46 unit/MockBukkit tests passed; package checks passed.
-Build completed with JDK 21 and `release=21`.
+Checked on 2026-10-01. All **55 unit/MockBukkit tests passed**, with no skipped tests. Maven verification, Java 21 package checks and historical fixture checksum checks passed. The shared plugin and public API compile against Spigot 1.21.8; the single plugin JAR contains Java 21 bytecode and no bundled server dependencies.
 
-| Purpur version | Build | Java | Server integration |
-|---|---:|---:|---|
-| 1.21.8 | 2497 | 21 | PASS |
-| 1.21.9 | 2505 | 21 | PASS |
-| 1.21.10 | 2535 | 21 | PASS |
-| 1.21.11 | 2568 | 21 | PASS |
-| 26.1.2 | 2592 | 25 | PASS |
-| 26.2 | 2633 | 25 | PASS |
-| 26.3 | 2642 | 25 | PASS |
+| Minecraft | Java | Spigot | Paper | Purpur |
+|---|---:|---|---|---|
+| 1.21.8 | 21 | PASS | PASS | PASS |
+| 1.21.9 | 21 | Unavailable¹ | PASS | PASS |
+| 1.21.10 | 21 | PASS | PASS | PASS |
+| 1.21.11 | 21 | PASS | PASS | PASS |
+| 26.1.2 | 25 | PASS | PASS | PASS |
+| 26.2 | 25 | PASS | PASS | PASS |
+| 26.3 | 25 | PASS — experimental | PASS — experimental | PASS — experimental |
 
-## What was verified
+¹ Official BuildTools resolves the requested Spigot 1.21.9 revision to Minecraft 1.21.10. No exact 1.21.9 artifact was tested or claimed as supported. This is recorded as unavailable rather than a successful test.
 
-Real disposable servers loaded the plugin and its API, saved and loaded NBT snapshots,
-read legacy ObjectStream fixtures with 41-slot inventories, and completed 12 concurrent backups without overwriting files.
-Item equality was checked for enchanted swords with names, lore, PDC and attribute modifiers,
-written books, potions, filled shulker boxes, armor and offhand; level and experience also matched.
-A separate upgrade test successfully loaded the populated 1.21.8 NBT fixture on 26.3 build 2642 and verified the same item equality checks.
-The legacy fixtures were generated on each test server in the old encoding; these are not historical archives exported by a previous plugin release.
+## Storage and historical archives
 
-Regression tests additionally cover damaged payloads, missing armor, newer data versions,
-immutable snapshots, quantity-aware missing items, insufficient capacity without partial changes,
-queue persistence failures, concurrent flushes, stale queue callbacks, restart loading,
-disconnect-to-offline queueing, retention protection, 1000 filename collisions, rejected reloads and shutdown completion.
-Synthetic death events cover generic damage, fall, void and kill sources with both keepInventory settings.
-Mock GUI events cover shift-click, number keys, double-click, creative, offhand swap and dragging.
+Paper/Purpur use their native item byte API; Spigot uses an isolated CraftBukkit/NMS codec with Minecraft's registry-aware item serialization and data conversion. Format 3 is retained across platforms, including `DataVersion`. Adapter detection and an NBT roundtrip run before configuration, ZIP or inventory mutations. Unknown adapters and unsupported server versions disable the plugin; there is no alternate lossy writer. Folia is not supported.
 
-## Release status and remaining checks
+The original public serializer helpers are again matched ObjectStream write/read pairs. New backups use the explicit NBT codec. Legacy archives and new NBT archives have separate read paths. Newer data versions, corrupt payloads, unknown formats and missing inventory/armor are rejected before application.
 
-**Compatibility candidate; no production release has been published.** Purpur 26.3 build 2642 is experimental.
-The following checks require real player sessions and the intended server's plugin set; they are not claimed as completed:
+Unmodified original **0.0.7 and 0.1.0** JARs generated the checked-in historical fixtures on Purpur 1.20.1 build 2062 with Java 17. Provenance, source JAR hashes, server hash and every original file hash are in [tests/fixtures](tests/fixtures/README.md). These are freshly exported historical-format datasets, not a sample of every production archive ever written.
 
-- Trigger combat, fall, void and `/kill` deaths with populated inventories, with keepInventory on and off; compare the captured inventory before death.
-- Join after queuing a restore, disconnect during loading, reconnect and replace/cancel a pending entry; confirm only the current session and current request are applied.
-- Perform actual client inventory interactions, including creative mode, to confirm no preview items can leave the GUI.
-- Upgrade a copy of an actual 0.0.7/0.1.0 plugin data directory; inspect the pre-upgrade ZIP, UUID migration and restore representative historical backups.
+Both complete release directories were upgraded on every available matrix combination. The checks cover historical listing/loading, 41-to-36 slot normalization, player-name-to-UUID migration, original inventory bytes remaining unchanged, and the pre-upgrade ZIP containing every original file byte for byte. Item checks include names, lore, enchantments, PDC, books, potions, filled shulker boxes, armor, offhand and XP. Legacy block entity NBT is converted before Bukkit deserializes it, preserving the old shulker contents.
 
-Release only after these checks are recorded as successful. Future Minecraft versions are not covered by this matrix.
-Filesystem replacement is not a transaction with Minecraft player data: a hard crash between application and queue removal persistence can replay a restore.
+## Transfers, upgrades and clients
 
-## Reproduction and evidence
+Each available platform exported populated format-3 backups. Other platforms on the same Minecraft version loaded them and compared complete item NBT semantically, including attributes and additional nested custom data/byte arrays. Every newer target also loaded backups exported by all three 1.21.8 platforms. Null slots, armor, offhand, XP, public legacy helpers and 12 concurrent writes were verified on real servers.
 
-Run `mvn clean verify -Pserver-tests`, then `python tests/check_package.py`.
-Run `python tests/run_servers.py --java21 <java21> --java25 <java25>` to repeat the pinned matrix.
-The runner creates isolated localhost-only servers and records console logs, server checksums and plugin checksums under `target/server-tests/`.
-Never install the integration-test plugin on a production server; it shuts the server down after testing.
+Two real protocol clients tested **Spigot, Paper and Purpur 1.21.8**. Eight vanilla deaths cover combat, fall, void and `/kill`, each with keepInventory enabled and disabled. Preview GUI checks send survival and creative click packets, shift clicks, number keys, offhand swaps, double clicks and drags. A creative packet duplication defect found by these clients was fixed. Clients also disconnect, cancel and replace a pending restore, reconnect and verify that the replacement applies and the queue entry is consumed.
 
-Full-matrix plugin SHA-256: `dec4b87b263b15034e0bb1fac5d5bc994a3da9ef17b392b75bc05dd4d5a32d4f`.
+Unit regressions additionally cover startup failure without archive changes, bounded NBT expansion and nesting, multiline Base64, cyclic legacy objects, incomplete backups, future data versions, filename/migration collisions, capacity rejection without partial changes, pending queue persistence/races, retention protection and shutdown completion. Public backup/restore API signatures and events are unchanged.
 
-Upgrade-test plugin SHA-256: `a52ca3cec1fc0209778705228d6c6a6930cdd45dea247400a37acc3a29900cb1`. The rebuild since the full matrix changed production comments and indentation only.
+## Evidence and reproduction
+
+[tests/server-results.json](tests/server-results.json) records the exact server builds/revisions, SHA-256 values, transfer counts, historical checks and client results. Full local server logs and results are under `target/server-tests/`; client logs are under `target/client-tests/`. CI repeats the matrix, baseline upgrades, both historical archives and baseline client checks, and uploads evidence. CI itself has not been run remotely during this implementation.
+
+```text
+mvn verify -Pserver-tests,client-tests,historical-fixtures
+python tests/check_package.py
+python tests/check_fixtures.py
+python tests/run_servers.py --java21 <java21> --java25 <java25> --historical-data tests/fixtures/0.0.7/data
+python tests/run_servers.py --no-transfers --java21 <java21> --java25 <java25> --historical-data tests/fixtures/0.1.0/data
+npm ci --ignore-scripts --prefix tests/clients
+python tests/run_clients.py --java21 <java21>
+```
+
+Spigot is built using official BuildTools; Paper downloads are checksum verified and cached with their build manifests; Purpur builds are pinned. Runners create disposable localhost servers and accept the Minecraft EULA in those directories. Never install test harness plugins on production servers; they shut down after testing.
+
+Verified plugin SHA-256: `f462f9a7bf804bf2025ea928fd2ebdddcc1924305f2b7f69d0e266119c5516b3`.
+
+## Release limits
+
+No production release has been published. Minecraft 26.3 remains experimental. Future versions and Minecraft versions below 1.21.8 are excluded. Downgrading newer item data to older servers remains unsupported.
+
+Real client coverage is limited to 1.21.8. Before production deployment, exercise the intended server's plugin set, representative actual player archives and disconnects during an in-flight restore on the selected target version. Historical fixture checks establish the representative formats above, not universal historical compatibility. Filesystem replacement is not a transaction with Minecraft player data: a hard crash between applying a restore and persisting queue removal can replay it.

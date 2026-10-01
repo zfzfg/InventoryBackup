@@ -60,7 +60,7 @@ public final class UpdateChecker {
      */
     public UpdateChecker(InventoryBackup plugin, String projectId, String contact, boolean stableOnly) {
         this.plugin = plugin;
-        this.minecraftVersion = Bukkit.getMinecraftVersion();
+        this.minecraftVersion = plugin.getPlatform().minecraftVersion();
         this.projectId = projectId;
         this.contact = contact;
         this.stableOnly = stableOnly;
@@ -157,8 +157,11 @@ public final class UpdateChecker {
             for (JsonElement element : versions) {
                 JsonObject version = element.getAsJsonObject();
                 if (!version.has("game_versions") || !contains(version.getAsJsonArray("game_versions"), minecraftVersion)) continue;
-                if (!version.has("loaders") || !(contains(version.getAsJsonArray("loaders"), "purpur")
-                        || contains(version.getAsJsonArray("loaders"), "paper") || contains(version.getAsJsonArray("loaders"), "spigot"))) continue;
+                if (!version.has("loaders")) continue;
+                boolean compatible = false;
+                for (JsonElement loader : version.getAsJsonArray("loaders"))
+                    if (plugin.getPlatform().supportsLoader(loader.getAsString())) compatible = true;
+                if (!compatible) continue;
                 if (stableOnly && version.has("version_type")
                         && !"release".equals(version.get("version_type").getAsString())) {
                     continue;

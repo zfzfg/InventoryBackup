@@ -1,6 +1,6 @@
 # InventoryBackup Plugin
 
-A Minecraft Purpur plugin that automatically saves player inventories on death and provides comprehensive restore functionality.
+A Minecraft Spigot, Paper and Purpur plugin that automatically saves player inventories on death and provides comprehensive restore functionality.
 
 - **Modrinth Project:** https://modrinth.com/project/rpKY25cW
 - **Developer API Artifact:** `com.zfzfg:InventoryBackup-API:0.2.0`
@@ -33,9 +33,10 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Requirements
 
-- Purpur 1.21.8 through 26.3; future versions require another compatibility test
+- Minecraft 1.21.8 through 26.3 on the tested Spigot, Paper and Purpur builds listed in [COMPATIBILITY.md](COMPATIBILITY.md)
 - Java 21 for Minecraft 1.21.x; Java 25 for Minecraft 26.1+
-- Spigot and Folia are not supported
+- A single plugin JAR selects the native Paper/Purpur NBT codec or the internal Spigot NBT adapter automatically
+- Folia is not supported; future Minecraft versions require another compatibility test
 - See [COMPATIBILITY.md](COMPATIBILITY.md) for tested builds and remaining release checks
 
 ## Installation
@@ -52,6 +53,12 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 4. Start your server (use `/inv reload` only for plugin configuration)
 
 The project is structured as a multi-module Maven build: `plugin/` produces the server plugin JAR, while `api/` produces the artifact other developers compile against (`api/target/InventoryBackup-API-0.2.0.jar`). The API is shaded into the plugin JAR, so server administrators only need the single plugin file.
+
+### Existing backups and platform changes
+
+Backups from 0.0.7 and 0.1.0 remain readable. Their ObjectStream payloads, including multiline Base64 and 41-slot inventories, are read without rewriting the original files. Legacy block entity data is upgraded before decoding metadata so populated shulker boxes retain their contents. A ZIP of the original plugin data is created before the name-to-UUID folder migration.
+
+New archives continue to use `format-version: 3`, compressed Minecraft item NBT and `data-version`. They can move between tested Spigot, Paper and Purpur servers on the same Minecraft version or upgrade to a newer tested version. Downgrades to older data versions are rejected. No extra server plugin is required. Adapter initialization fails before changing the archive if the target is unsupported or its NBT self-test fails.
 
 ## Configuration
 
@@ -248,7 +255,12 @@ Configuration reload validates the complete candidate first; invalid settings re
 
 `mvn clean verify` runs unit and MockBukkit regression tests and produces the plugin JAR.
 `mvn clean package -Pserver-tests` additionally builds a disposable-server test plugin.
-Run `python tests/run_servers.py --java21 <java21-path> --java25 <java25-path>` for the Purpur server matrix.
-The runner downloads pinned server builds into `target/server-tests/`, starts localhost-only test servers, and records build numbers, SHA-256 and logs.
+Run `python tests/run_servers.py --java21 <java21-path> --java25 <java25-path>` for the Spigot/Paper/Purpur matrix, platform transfers and upgrades from 1.21.8.
+Add `--historical-data tests/fixtures/0.0.7/data` or `tests/fixtures/0.1.0/data` to verify original release archives, migration and the pre-upgrade ZIP.
+The runner caches server downloads in `.test-cache/servers/`, builds Spigot with official BuildTools in `target/spigot-build/`, starts localhost-only test servers, and records build revisions, SHA-256 and logs in `target/server-tests/`.
 It writes `eula=true` in those disposable servers; running it requires agreement to the Minecraft server EULA.
 The server-test plugin must never be installed on a production server: it shuts down its server after the tests.
+
+For real protocol-client tests, build `mvn package -Pclient-tests`, install the pinned clients with `npm ci --ignore-scripts --prefix tests/clients`, and run `python tests/run_clients.py --java21 <java21-path>`.
+These disposable 1.21.8 servers check vanilla deaths, preview inventory packets and reconnecting with a replaced pending restore. They do not connect to an existing server.
+See [COMPATIBILITY.md](COMPATIBILITY.md) for the verified builds and remaining release checks, and [tests/fixtures/README.md](tests/fixtures/README.md) for fixture provenance.

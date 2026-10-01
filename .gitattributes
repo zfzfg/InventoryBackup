@@ -1,0 +1,2 @@
+# Historical archive checksums refer to the exact bytes written by the old plugin.
+tests/fixtures/**/data/** -text
