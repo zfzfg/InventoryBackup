@@ -1,11 +1,8 @@
 package com.zfzfg.inventorybackup.managers;
 
 import com.zfzfg.inventorybackup.InventoryBackup;
-import com.zfzfg.inventorybackup.api.BackupHandle;
 import com.zfzfg.inventorybackup.api.events.BackupDeletedEvent;
 import org.bukkit.scheduler.BukkitRunnable;
-
-import java.util.List;
 
 /**
  * Ages out backups older than {@code auto-delete-days}.

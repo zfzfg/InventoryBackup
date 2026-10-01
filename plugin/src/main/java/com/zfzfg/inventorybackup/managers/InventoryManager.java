@@ -10,7 +10,6 @@ import com.zfzfg.inventorybackup.utils.InventorySerializer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
@@ -384,11 +383,12 @@ public class InventoryManager {
         try {
             File[] files = backupFiles(playerFolder(owner));
             if (files == null || files.length == 0) fileNames.remove(owner);
-            else fileNames.put(owner, java.util.Arrays.stream(files).map(File::getName).sorted().toList());
+            else fileNames.put(owner, java.util.Arrays.stream(files)
+                    .map(file -> file == null ? "" : file.getName()).sorted().toList());
         } finally { lock.unlock(); }
     }
     public void initializeFileNames() {
-        File[] folders = inventoriesFolder().listFiles(File::isDirectory);
+        File[] folders = inventoriesFolder().listFiles(file -> file != null && file.isDirectory());
         if (folders != null) for (File folder : folders) {
             UUID owner = parseUuid(folder.getName()); if (owner != null) refreshFileNames(owner);
         }
@@ -560,15 +560,6 @@ public class InventoryManager {
         }
     }
 
-    private boolean hasItem(Inventory inventory, ItemStack item) {
-        for (ItemStack invItem : inventory.getContents()) {
-            if (invItem != null && invItem.isSimilar(item) && invItem.getAmount() >= item.getAmount()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     // ---------------------------------------------------------- file layout
 
     File inventoriesFolder() {
@@ -631,10 +622,10 @@ public class InventoryManager {
 
         // Ensure the resolved file is still within the player folder.
         try {
-            String canonicalPath = file.getCanonicalPath();
-            String canonicalFolder = playerFolder.getCanonicalPath();
-            if (!playerFolder.getCanonicalFile().toPath().startsWith(inventoriesFolder().getCanonicalFile().toPath())
-                    || !file.getCanonicalFile().toPath().startsWith(playerFolder.getCanonicalFile().toPath())) {
+            java.nio.file.Path canonicalPath = file.getCanonicalFile().toPath();
+            java.nio.file.Path canonicalFolder = playerFolder.getCanonicalFile().toPath();
+            java.nio.file.Path canonicalRoot = inventoriesFolder().getCanonicalFile().toPath();
+            if (!canonicalFolder.startsWith(canonicalRoot) || !canonicalPath.startsWith(canonicalFolder)) {
                 plugin.getLogger().warning(plugin.getLanguageManager().getConsoleMsg(
                         "path-traversal", "file", fileName));
                 return null;

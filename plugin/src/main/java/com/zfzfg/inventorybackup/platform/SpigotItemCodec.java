@@ -17,9 +17,11 @@ final class SpigotItemCodec implements ItemCodec {
     private final Method asNms, asBukkit, encodeStart, parse, getOrThrow, putInt;
     private final Method readCompressed, writeCompressed, limiter, update, dynamicValue;
     private final Constructor<?> dynamic;
+    private final int dataVersion;
 
     SpigotItemCodec(String version) throws ReflectiveOperationException {
         if (!Platform.TARGET_VERSIONS.contains(version)) throw new IllegalArgumentException("Unsupported Spigot " + version);
+        dataVersion = MinecraftDataVersion.current();
         String craft = Bukkit.getServer().getClass().getPackageName();
         Class<?> craftStack = Class.forName(craft + ".inventory.CraftItemStack");
         asNms = craftStack.getMethod("asNMSCopy", ItemStack.class);
@@ -97,7 +99,7 @@ final class SpigotItemCodec implements ItemCodec {
         Object stack = NmsReflection.invoke(getOrThrow, NmsReflection.invoke(parse, codec, ops, tag));
         return (ItemStack) NmsReflection.invoke(asBukkit, null, stack);
     }
-    @Override public int dataVersion() { return Bukkit.getUnsafe().getDataVersion(); }
+    @Override public int dataVersion() { return dataVersion; }
 
     private static Class<?> nms(String mojang, String spigot) throws ClassNotFoundException {
         try { return Class.forName(mojang); } catch (ClassNotFoundException ignored) { return Class.forName(spigot); }

@@ -48,7 +48,9 @@ python tests/run_clients.py --java21 <java21>
 
 Spigot is built using official BuildTools; Paper downloads are checksum verified and cached with their build manifests; Purpur builds are pinned. Runners create disposable localhost servers and accept the Minecraft EULA in those directories. Never install test harness plugins on production servers; they shut down after testing.
 
-Verified plugin SHA-256: `f462f9a7bf804bf2025ea928fd2ebdddcc1924305f2b7f69d0e266119c5516b3`.
+Verified plugin SHA-256 for this tree: `f4c5b35ed54480a246ddf570d7abc034418605f95fdac5c332e9b4abe318b05c`.
+
+The server and client matrix above was recorded on 2026-10-01 for the storage behavior. This JAR keeps that behavior and reads the Minecraft data version from the server instead of `Bukkit.getUnsafe()`. The matrix was not repeated after that lookup change. Unit tests for this JAR passed.
 
 ## Release limits
 

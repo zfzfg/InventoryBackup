@@ -32,7 +32,7 @@ final class LegacyObjects {
             // metadata version makes identical live items compare unequal.
             var meta = item.getItemMeta();
             if (meta != null) {
-                meta.setVersion(org.bukkit.Bukkit.getUnsafe().getDataVersion());
+                meta.setVersion(com.zfzfg.inventorybackup.platform.Platform.currentDataVersion());
                 item.setItemMeta(meta);
             }
         }
@@ -52,7 +52,7 @@ final class LegacyObjects {
             // Convert nested items first, while the original item's version is still available.
             if ("ItemMeta".equals(map.get("==")) && "TILE_ENTITY".equals(map.get("meta-type"))
                     && map.get("internal") instanceof String internal && sourceVersion > 0) {
-                int current = org.bukkit.Bukkit.getUnsafe().getDataVersion();
+                int current = com.zfzfg.inventorybackup.platform.Platform.currentDataVersion();
                 if (sourceVersion < current) {
                     byte[] bytes = Base64.getMimeDecoder().decode(internal);
                     map.put("internal", Base64.getEncoder().encodeToString(

@@ -4,9 +4,10 @@
 
 **InventoryBackup** is a powerful, robust, and secure Minecraft Spigot/Paper plugin designed to automatically archive player inventories upon death and provide comprehensive, flexible restore functionality. Built with server administrators and developers in mind, it offers a complete, production-ready solution featuring a rich Developer API, offline player restores, UUID-based storage, multi-language support (English and German), and dupe-proof inventory previews.
 
+- **Version:** 0.2.0
 - **Modrinth Project:** https://modrinth.com/project/rpKY25cW
-- **Developer API Artifact:** `com.zfzfg:InventoryBackup-API:0.1.0`
-- **Supported Platforms:** Minecraft 1.20+ (Spigot / Paper / Purpur) & Java 17+
+- **Developer API Artifact:** `com.zfzfg:InventoryBackup-API:0.2.0`
+- **Supported Platforms:** Minecraft 1.21.8 through 26.3 on tested Spigot, Paper and Purpur builds (Java 21 for 1.21.x, Java 25 for 26.1+). Folia is not supported. See [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ---
 
@@ -49,11 +50,13 @@ This guarantees accurate inventory capture even during instantaneous, one-shot d
 - **Missing Items Only**: Compares the backup against what the player currently holds and gives back only the items they are lacking without wiping their current inventory (`/inv <player> givemissing <filename>`).
 - **Protected GUI Preview**: Inspect the exact contents of any backup in an interactive GUI window (`/inv <player> show <filename>`). Viewers cannot drag, click, or duplicate items out of the preview GUI.
 
-### 4. UUID-Based Storage & Instant Name Index
+### 4. UUID-Based Storage, NBT Archives & Legacy Reads
 - Backups are stored in `plugins/InventoryBackup/inventories/<UUID>/` to ensure player history is never lost or orphaned when a player changes their Minecraft name.
+- New files use `format-version: 3`, compressed Minecraft item NBT and the server data version. The same archive can move between tested Spigot, Paper and Purpur servers on that Minecraft version, or upgrade to a newer tested version.
+- Backups written by 0.0.7 and 0.1.0 stay readable, including multiline Base64 and 41-slot inventories. Original files are not rewritten. A ZIP of the plugin data is created before the first new-format startup.
 - File names follow the format `<yyyy-MM-dd_HH-mm-ss>_<type>.yml` (e.g. `2026-08-11_15-30-45_death.yml`).
 - Fast, local name-to-UUID lookups via `names.yml` eliminate blocking web requests to Mojang APIs during commands and tab completion.
-- Seamless automatic migration from legacy folder structures on server startup.
+- Seamless automatic migration from legacy player-name folders on server startup.
 
 ### 5. Multi-Language & Translation Bundles
 - Complete translations for all player messages, GUI titles, list entries, and console logs.
@@ -225,7 +228,7 @@ Add the API dependency to your `pom.xml`:
 <dependency>
     <groupId>com.zfzfg</groupId>
     <artifactId>InventoryBackup-API</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>provided</scope>
 </dependency>
 ```

@@ -43,7 +43,7 @@ public class InventorySerializerTest {
     @Test void cyclicLegacyCollectionsAreRejectedWithoutRecursionFailure() throws Exception {
         var cyclic = new java.util.ArrayList<Object>(); cyclic.add(cyclic);
         var bytes = new java.io.ByteArrayOutputStream();
-        try (var out = new org.bukkit.util.io.BukkitObjectOutputStream(bytes)) {
+        try (var out = new java.io.ObjectOutputStream(bytes)) {
             out.writeInt(1); out.writeObject(cyclic);
         }
         assertThrows(IllegalArgumentException.class, () -> InventorySerializer.deserializeInventory(

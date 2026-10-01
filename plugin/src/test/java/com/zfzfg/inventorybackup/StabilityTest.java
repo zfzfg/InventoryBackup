@@ -55,7 +55,8 @@ class StabilityTest {
         var snapshot = new BackupSnapshot(null, contents, new ItemStack[4], null, 0, 0);
         assertEquals(1, plugin.getInventoryManager().applyMissingItems(player, snapshot));
         assertEquals(0, plugin.getInventoryManager().applyMissingItems(player, snapshot));
-        assertEquals(8, java.util.Arrays.stream(player.getInventory().getContents()).filter(java.util.Objects::nonNull).mapToInt(ItemStack::getAmount).sum());
+        assertEquals(8, java.util.Arrays.stream(player.getInventory().getContents()).filter(java.util.Objects::nonNull)
+                .mapToInt(item -> item == null ? 0 : item.getAmount()).sum());
     }
     @Test void overflowRejectionDoesNotChangePlayer() {
         var player = server.addPlayer();
@@ -75,7 +76,8 @@ class StabilityTest {
         assertEquals("new.yml", reloaded.get(target).orElseThrow().backupId());
     }
     @Test void malformedPayloadIsRejected() {
-        assertThrows(IllegalArgumentException.class, () -> InventorySerializer.decodeInventory("broken", true));
+        assertThrows(IllegalArgumentException.class, () -> InventorySerializer.decodeInventory("broken",
+                com.zfzfg.inventorybackup.platform.TestPlatforms.mock().itemCodec()));
         assertThrows(IllegalArgumentException.class, () -> InventorySerializer.decodeItem("broken", false));
     }
     private <T> T await(java.util.concurrent.CompletableFuture<T> future) throws Exception {
@@ -210,7 +212,8 @@ class StabilityTest {
             for (boolean keepInventory : java.util.List.of(false, true)) {
                 var player = server.addPlayer(); player.setLevel(12); player.setExp(.5f);
                 var source = org.bukkit.damage.DamageSource.builder(type).build();
-                var event = new org.bukkit.event.entity.PlayerDeathEvent(player, source, new java.util.ArrayList<>(), 0, (String) null);
+                var event = new org.bukkit.event.entity.PlayerDeathEvent(player, source, new java.util.ArrayList<>(), 0,
+                        net.kyori.adventure.text.Component.empty(), true);
                 event.setKeepInventory(keepInventory); server.getPluginManager().callEvent(event);
                 java.util.List<BackupHandle> handles = java.util.List.of();
                 for (int i = 0; i < 10 && handles.isEmpty(); i++) handles = await(plugin.getApiService().listBackups(player.getUniqueId(), "death"));

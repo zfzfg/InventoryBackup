@@ -54,6 +54,9 @@ public final class Platform {
             return true;
         } catch (NoSuchMethodException error) { return false; }
     }
+    public static int currentDataVersion() {
+        return MinecraftDataVersion.current();
+    }
     public static String minecraftVersion(String bukkitVersion) {
         var match = java.util.regex.Pattern.compile("^([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)(?:-|\\.build\\.|$)").matcher(bukkitVersion);
         return match.find() ? match.group(1) : bukkitVersion;

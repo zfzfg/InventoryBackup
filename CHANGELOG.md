@@ -5,6 +5,29 @@ All notable changes to the InventoryBackup plugin are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-01
+
+### New Features
+
+- **Spigot NBT storage**: One plugin JAR selects Paper/Purpur's native item byte API or an internal CraftBukkit codec. New backups stay on `format-version: 3` with compressed Minecraft item NBT and `data-version`.
+- **Cross-platform archives**: Backups move between tested Spigot, Paper and Purpur servers on the same Minecraft version and upgrade to a newer tested version. Newer data versions are rejected instead of being applied.
+- **Historical backups stay readable**: Unmodified 0.0.7 and 0.1.0 archives, including multiline Base64 and 41-slot inventories, load through the original ObjectStream path. Existing files are not rewritten. Legacy shulker and other block-entity contents are upgraded before metadata decoding.
+- **Safe startup**: The NBT adapter runs a round trip before configuration, the pre-upgrade ZIP, or inventory migration. An unsupported server, Folia, or a failed self-test disables the plugin and leaves the archive untouched.
+- **Update checks follow the detected loader**: Modrinth results are matched to Spigot, Paper, or Purpur instead of accepting every loader.
+
+### Compatibility
+
+- Tested on Minecraft 1.21.8, 1.21.10, 1.21.11, 26.1.2, 26.2 and 26.3 for Spigot, Paper and Purpur. Paper and Purpur 1.21.9 are included. No exact Spigot 1.21.9 build exists. Minecraft 26.3 is experimental. Details and limits are in [COMPATIBILITY.md](COMPATIBILITY.md).
+- Java 21 for Minecraft 1.21.x and Java 25 for Minecraft 26.1+.
+- The public backup and restore API, events, and `InventoryBackupAPI.API_VERSION` (`2`) are unchanged. The API artifact coordinate is `com.zfzfg:InventoryBackup-API:0.2.0`.
+
+### Behavior
+
+- A `pre-nbt-upgrade-<timestamp>.zip` of the plugin data is created once before new-format writes.
+- The public legacy serializer helpers are ObjectStream pairs again. New backups use the explicit NBT codec. Legacy and NBT payloads cannot be read as each other.
+- The running Minecraft data version comes from the server itself. The adapters no longer call `Bukkit.getUnsafe()`.
+- Player-name folders still migrate to UUID folders (`storage-version: 2`) after the pre-upgrade ZIP.
+
 ## [0.1.0] - 2026-08-11
 
 ### New Features
