@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zfzfg</groupId>
+        <artifactId>InventoryBackup-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>InventoryBackup</artifactId>
+    <packaging>jar</packaging>
+
+    <name>InventoryBackup</name>
+    <description>Saves player inventories on death and provides restore functionality</description>
+
+    <dependencies>
+        <!--
+            compile scope on purpose: the shade plugin bakes the API classes into
+            the plugin jar so the server has them at runtime. Deliberately NOT
+            relocated - a relocated API would no longer match the classes a
+            consumer plugin compiled against.
+        -->
+        <dependency>
+            <groupId>com.zfzfg</groupId>
+            <artifactId>InventoryBackup-API</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+        </dependency>
+        <!--
+            Used by UpdateChecker. Ships with the server (Spigot bundles it), so
+            provided - but declared explicitly instead of relying on the
+            transitive path through spigot-api.
+        -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}-${project.version}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.zfzfg:InventoryBackup-API</include>
+                                </includes>
+                            </artifactSet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        <resources>
+            <!-- Only plugin.yml needs filtering, for ${project.version}. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>plugin.yml</include>
+                </includes>
+            </resource>
+            <!--
+                Everything else is copied byte for byte. Filtering the message
+                bundles would substitute any ${...} appearing in a translated
+                text and needlessly re-encodes files that contain umlauts.
+            -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>plugin.yml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+    </build>
+</project>

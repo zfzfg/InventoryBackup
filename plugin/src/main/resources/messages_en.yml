@@ -1,0 +1,113 @@
+# ============================================================
+# InventoryBackup - English messages
+# ============================================================
+#
+# Select this file with `language: "en"` in config.yml, or at
+# runtime with /inv lang en.
+#
+# This file is also the fallback bundle: any key missing from
+# another language falls back to the English text below, so a
+# partial translation never breaks the plugin.
+#
+# Colour codes use & (e.g. &a green, &c red, &r reset).
+# Placeholders in {curly braces} are replaced by the plugin -
+# keep them exactly as written, but they may be reordered.
+# ============================================================
+
+messages:
+  prefix: "&8[&6InvBackup&8]&r"
+
+  # --- Backup and restore -----------------------------------
+  inventory-saved: "&aInventory saved for {player}!"
+  inventory-restored: "&aInventory restored for {player}!"
+  inventory-shown: "&aShowing inventory for {player}..."
+  inventory-level: "&6Player {player} had Level {level}"
+  missing-items-given: "&aGiven {count} missing items to {player}!"
+  backup-created: "&aBackup created for {player}!"
+  backup-all-created: "&aBackup created for {count} players!"
+  file-deleted: "&aOld inventory files cleaned up: {count} files deleted"
+  backup-deleted: "&aBackup deleted: {filename}"
+  all-backups-deleted: "&aDeleted {count} backups for {player}!"
+
+  # --- Offline restores -------------------------------------
+  # A restore aimed at an offline player waits for their next join.
+  restore-queued: "&e{player} is offline - the restore will run on their next join."
+  restore-cancelled: "&cThe restore for {player} was cancelled by another plugin."
+  pending-info: "&7Restore queued for &e{player}&7: &f{file}"
+  pending-none: "&7No restore is queued for {player}."
+  pending-cancelled: "&aCancelled the queued restore for {player}."
+
+  # --- Errors -----------------------------------------------
+  no-inventory-found: "&cNo inventory file found with that name!"
+  player-not-found: "&cPlayer not found!"
+  player-unknown: "&cUnknown player '{player}' - they have never joined this server."
+  player-only: "&cThis command can only be used by players!"
+  no-permission: "&cYou don't have permission to use this command!"
+  invalid-usage: "&cUsage: /inv <player> <restore|show|givemissing|list|delete|pending|cancelpending> <filename> OR /inv backup <all|player> OR /inv version OR /inv lang [en|de] OR /inv reload"
+
+  # --- Backup list ------------------------------------------
+  # Sent without the prefix, one line per backup.
+  # {type} is the backup type (death, manual, or whatever another
+  # plugin used), {source} the plugin that created it.
+  list-header: "&6Backups for {player}:"
+  list-entry: "&7- {file} &8({type})"
+
+  # --- Inventory viewer -------------------------------------
+  # Sent without the prefix. Minecraft truncates inventory
+  # titles, so keep this short.
+  gui-title: "&6Inventory: {player}"
+
+  # --- Update checker ---------------------------------------
+  update-available: "&eUpdate available: &f{current} &7-> &a{latest}"
+  update-download: "&7Download: &b{url}"
+  update-current: "&7Installed version: &e{version}"
+  update-up-to-date: "&aThe plugin is up to date."
+  update-checking: "&7Checking for updates ..."
+  update-failed: "&cUpdate check failed. See the server console for details."
+  update-disabled: "&7The update check is disabled."
+
+  # --- Language and reload ----------------------------------
+  reloaded: "&aConfiguration and messages reloaded."
+  lang-current: "&7Current language: &e{lang} &7(available: {available})"
+  lang-changed: "&aLanguage changed to &e{lang}&a."
+  lang-invalid: "&cUnknown language '{lang}'. Available: {available}"
+
+# ============================================================
+# Console output. Written to the server log, never to chat.
+# Colour codes are stripped here, so adding them has no effect.
+# ============================================================
+console:
+  plugin-enabled: "InventoryBackup has been enabled!"
+  plugin-disabled: "InventoryBackup has been disabled!"
+  cleanup-task-started: "File cleanup task started. Will run every {hours} hours."
+  cleanup-disabled: "Auto-deletion is disabled."
+  cleanup-running: "Running scheduled inventory cleanup..."
+  cleanup-finished: "Cleaned up {count} old inventory files."
+  cleanup-nothing: "No old inventory files to clean up."
+  save-failed: "Failed to save inventory for {player}: {error}"
+  backup-unreadable: "Backup {file} of {player} could not be decoded and was NOT applied. The file is left untouched."
+  command-failed: "A command could not be completed: {error}"
+  api-registered: "Developer API registered (version {version})."
+  index-save-failed: "Could not save the player name index: {error}"
+  pending-save-failed: "Could not save the pending restores: {error}"
+  pending-applied: "Applied the queued inventory restore for {player}."
+  pending-expired: "Discarded {count} expired pending restore(s)."
+  storage-migration-start: "Migrating {count} inventory folder(s) to UUID storage. Do not stop the server."
+  storage-migration-moved: "Migrated the backups of '{player}' to {uuid}."
+  storage-migration-unresolved: "Could not determine a UUID for '{player}'. Moved to inventories/_unmigrated/{player} - nothing was deleted."
+  storage-migration-finished: "Storage migration finished: {migrated} migrated, {skipped} left for manual review."
+  storage-migration-failed: "Could not migrate the backups of '{player}': {error}"
+  invalid-filename: "Invalid filename detected: {file}"
+  path-traversal: "Path traversal attempt detected: {file}"
+  path-validation-failed: "Failed to validate file path: {error}"
+  timestamp-parse-failed: "Failed to parse timestamp from filename: {file}"
+  lang-loaded: "Loaded messages for language '{lang}' ({file})"
+  lang-unknown: "Unknown language '{lang}' in config.yml, falling back to '{fallback}'."
+  lang-changed: "Language changed to '{lang}'."
+  lang-save-error: "Could not save the language to config.yml: {error}"
+  migration-done: "Migrated {count} customised message(s) from config.yml into {file}. A backup of the old file is at {backup}."
+  migration-failed: "Could not migrate the messages from config.yml: {error}"
+  update-check-failed: "Update check failed: {error}"
+  update-check-http: "Update check: HTTP {status} from Modrinth"
+  update-available: "Update available: {current} -> {latest} ({url})"
+  update-up-to-date: "Plugin is up to date ({version})"

@@ -1,0 +1,48 @@
+name: InventoryBackup
+version: '${project.version}'
+main: com.zfzfg.inventorybackup.InventoryBackup
+api-version: '1.20'
+author: Collin Lerche (zfzfg) | STERRA
+website: https://sterra.online
+description: Saves player inventories on death and provides restore functionality
+
+commands:
+  inv:
+    description: Inventory backup commands
+    usage: /inv <player> <restore|show|givemissing|list|delete|pending|cancelpending> <filename> OR /inv backup <all|player> OR /inv version OR /inv lang [en|de] OR /inv reload
+    permission: inventorybackup.use
+    aliases: [inventory, invbackup]
+
+permissions:
+  inventorybackup.use:
+    description: Use all inventory backup commands
+    default: op
+  inventorybackup.restore:
+    description: Restore inventories
+    default: op
+  inventorybackup.show:
+    description: Show saved inventories
+    default: op
+  inventorybackup.givemissing:
+    description: Give missing items
+    default: op
+  inventorybackup.backup:
+    description: Create manual backups
+    default: op
+  inventorybackup.notify:
+    description: Receive backup notification messages
+    default: op
+  inventorybackup.update.notify:
+    description: Receive update notifications
+    default: op
+  # plugin.yml is read by the server before the plugin loads, so these
+  # descriptions cannot be translated - they stay English on purpose.
+  inventorybackup.reload:
+    description: Reload the configuration and messages
+    default: op
+  inventorybackup.lang:
+    description: View and change the message language
+    default: op
+  inventorybackup.pending:
+    description: View and cancel restores queued for offline players
+    default: op

@@ -1,0 +1,114 @@
+# ============================================================
+# InventoryBackup - Deutsche Nachrichten
+# ============================================================
+#
+# Diese Datei waehlst du mit `language: "de"` in der config.yml
+# oder zur Laufzeit mit /inv lang de.
+#
+# Fehlt hier ein Schluessel, greift automatisch der englische
+# Text aus messages_en.yml - eine unvollstaendige Uebersetzung
+# macht also nichts kaputt.
+#
+# Farbcodes werden mit & geschrieben (&a gruen, &c rot, &r reset).
+# Platzhalter in {geschweiften Klammern} setzt das Plugin ein -
+# schreib sie genau so, die Reihenfolge darfst du aendern.
+# ============================================================
+
+messages:
+  prefix: "&8[&6InvBackup&8]&r"
+
+  # --- Backup und Wiederherstellung -------------------------
+  inventory-saved: "&aInventar von {player} gesichert!"
+  inventory-restored: "&aInventar von {player} wiederhergestellt!"
+  inventory-shown: "&aZeige Inventar von {player} ..."
+  inventory-level: "&6Spieler {player} hatte Level {level}"
+  missing-items-given: "&a{count} fehlende Items an {player} gegeben!"
+  backup-created: "&aBackup für {player} erstellt!"
+  backup-all-created: "&aBackup für {count} Spieler erstellt!"
+  file-deleted: "&aAlte Inventardateien aufgeräumt: {count} Dateien gelöscht"
+  backup-deleted: "&aBackup gelöscht: {filename}"
+  all-backups-deleted: "&a{count} Backups von {player} gelöscht!"
+
+  # --- Wiederherstellung für Offline-Spieler -----------------
+  # Wird der Zielspieler offline angesprochen, wartet die
+  # Wiederherstellung bis zu seinem nächsten Join.
+  restore-queued: "&e{player} ist offline - die Wiederherstellung läuft beim nächsten Join."
+  restore-cancelled: "&cDie Wiederherstellung für {player} wurde von einem anderen Plugin abgebrochen."
+  pending-info: "&7Vorgemerkte Wiederherstellung für &e{player}&7: &f{file}"
+  pending-none: "&7Für {player} ist keine Wiederherstellung vorgemerkt."
+  pending-cancelled: "&aVorgemerkte Wiederherstellung für {player} abgebrochen."
+
+  # --- Fehler -----------------------------------------------
+  no-inventory-found: "&cKeine Inventardatei mit diesem Namen gefunden!"
+  player-not-found: "&cSpieler nicht gefunden!"
+  player-unknown: "&cUnbekannter Spieler '{player}' - er war noch nie auf diesem Server."
+  player-only: "&cDiesen Befehl können nur Spieler benutzen!"
+  no-permission: "&cDu hast keine Berechtigung für diesen Befehl!"
+  invalid-usage: "&cVerwendung: /inv <Spieler> <restore|show|givemissing|list|delete|pending|cancelpending> <Dateiname> ODER /inv backup <all|Spieler> ODER /inv version ODER /inv lang [en|de] ODER /inv reload"
+
+  # --- Backup-Liste -----------------------------------------
+  # Wird ohne Prefix gesendet, eine Zeile pro Backup.
+  # {type} ist die Backup-Art (death, manual oder was ein anderes
+  # Plugin gesetzt hat), {source} das erzeugende Plugin.
+  list-header: "&6Backups von {player}:"
+  list-entry: "&7- {file} &8({type})"
+
+  # --- Inventar-Ansicht -------------------------------------
+  # Wird ohne Prefix gesendet. Minecraft kürzt Inventartitel,
+  # also kurz halten.
+  gui-title: "&6Inventar: {player}"
+
+  # --- Update-Prüfung ---------------------------------------
+  update-available: "&eUpdate verfügbar: &f{current} &7-> &a{latest}"
+  update-download: "&7Download: &b{url}"
+  update-current: "&7Installierte Version: &e{version}"
+  update-up-to-date: "&aDas Plugin ist auf dem neuesten Stand."
+  update-checking: "&7Suche nach Updates ..."
+  update-failed: "&cUpdate-Prüfung fehlgeschlagen. Details in der Server-Konsole."
+  update-disabled: "&7Die Update-Prüfung ist deaktiviert."
+
+  # --- Sprache und Reload -----------------------------------
+  reloaded: "&aKonfiguration und Nachrichten neu geladen."
+  lang-current: "&7Aktuelle Sprache: &e{lang} &7(verfügbar: {available})"
+  lang-changed: "&aSprache auf &e{lang} &agewechselt."
+  lang-invalid: "&cUnbekannte Sprache '{lang}'. Verfügbar: {available}"
+
+# ============================================================
+# Konsolenausgaben. Landen im Server-Log, nie im Chat.
+# Farbcodes werden hier entfernt und haben keine Wirkung.
+# ============================================================
+console:
+  plugin-enabled: "InventoryBackup wurde aktiviert!"
+  plugin-disabled: "InventoryBackup wurde deaktiviert!"
+  cleanup-task-started: "Aufräum-Task gestartet. Läuft alle {hours} Stunden."
+  cleanup-disabled: "Automatisches Löschen ist deaktiviert."
+  cleanup-running: "Geplantes Aufräumen der Inventardateien läuft ..."
+  cleanup-finished: "{count} alte Inventardateien aufgeräumt."
+  cleanup-nothing: "Keine alten Inventardateien zum Aufräumen."
+  save-failed: "Inventar von {player} konnte nicht gespeichert werden: {error}"
+  backup-unreadable: "Backup {file} von {player} konnte nicht gelesen werden und wurde NICHT angewendet. Die Datei bleibt unverändert."
+  command-failed: "Ein Befehl konnte nicht abgeschlossen werden: {error}"
+  api-registered: "Entwickler-API registriert (Version {version})."
+  index-save-failed: "Der Spielernamen-Index konnte nicht gespeichert werden: {error}"
+  pending-save-failed: "Die vorgemerkten Wiederherstellungen konnten nicht gespeichert werden: {error}"
+  pending-applied: "Vorgemerkte Wiederherstellung für {player} angewendet."
+  pending-expired: "{count} abgelaufene vorgemerkte Wiederherstellung(en) verworfen."
+  storage-migration-start: "{count} Inventarordner werden auf UUID-Speicherung umgestellt. Bitte den Server jetzt nicht beenden."
+  storage-migration-moved: "Backups von '{player}' nach {uuid} umgezogen."
+  storage-migration-unresolved: "Für '{player}' konnte keine UUID ermittelt werden. Verschoben nach inventories/_unmigrated/{player} - es wurde nichts gelöscht."
+  storage-migration-finished: "Umstellung abgeschlossen: {migrated} umgezogen, {skipped} zur manuellen Prüfung liegen geblieben."
+  storage-migration-failed: "Die Backups von '{player}' konnten nicht umgezogen werden: {error}"
+  invalid-filename: "Ungültiger Dateiname erkannt: {file}"
+  path-traversal: "Path-Traversal-Versuch erkannt: {file}"
+  path-validation-failed: "Dateipfad konnte nicht geprüft werden: {error}"
+  timestamp-parse-failed: "Zeitstempel konnte nicht aus dem Dateinamen gelesen werden: {file}"
+  lang-loaded: "Nachrichten für Sprache '{lang}' geladen ({file})"
+  lang-unknown: "Unbekannte Sprache '{lang}' in der config.yml, es wird '{fallback}' verwendet."
+  lang-changed: "Sprache auf '{lang}' gewechselt."
+  lang-save-error: "Die Sprache konnte nicht in die config.yml geschrieben werden: {error}"
+  migration-done: "{count} angepasste Nachricht(en) aus der config.yml nach {file} übernommen. Eine Sicherung der alten Datei liegt unter {backup}."
+  migration-failed: "Die Nachrichten aus der config.yml konnten nicht übernommen werden: {error}"
+  update-check-failed: "Update-Prüfung fehlgeschlagen: {error}"
+  update-check-http: "Update-Prüfung: HTTP {status} von Modrinth"
+  update-available: "Update verfügbar: {current} -> {latest} ({url})"
+  update-up-to-date: "Plugin ist aktuell ({version})"

@@ -1,0 +1,79 @@
+# ============================================================
+# Historical message defaults - internal, do not edit.
+# ============================================================
+#
+# Up to and including 0.0.7 the message texts lived in the
+# `messages:` block of config.yml. On first start with the new
+# language system those texts are migrated into
+# messages_<language>.yml.
+#
+# The migration must tell two cases apart:
+#
+#   * the value is one a released version shipped   -> the admin
+#     never touched it, so the new (properly translated) text
+#     wins and nothing is carried over;
+#   * the value is anything else                    -> a
+#     deliberate customisation, which is preserved.
+#
+# Each key therefore lists EVERY value ever shipped for it. When
+# a future release changes a default, append the old value here
+# instead of replacing it - otherwise that text gets mistaken for
+# a customisation and follows the admin around forever.
+#
+# Never remove entries. Keys absent from an older release simply
+# have fewer variants.
+# ============================================================
+
+legacy-defaults:
+  prefix:
+    - "&8[&6InvBackup&8]&r"
+  inventory-saved:
+    - "&aInventory saved for {player}!"
+  inventory-restored:
+    - "&aInventory restored for {player}!"
+  inventory-shown:
+    - "&aShowing inventory for {player}..."
+  inventory-level:
+    - "&6Player {player} had Level {level}"
+  missing-items-given:
+    - "&aGiven {count} missing items to {player}!"
+  backup-created:
+    - "&aBackup created for {player}!"
+  backup-all-created:
+    - "&aBackup created for {count} players!"
+  no-inventory-found:
+    - "&cNo inventory file found with that name!"
+  player-not-found:
+    - "&cPlayer not found!"
+  file-deleted:
+    - "&aOld inventory files cleaned up: {count} files deleted"
+  backup-deleted:
+    - "&aBackup deleted: {filename}"
+  all-backups-deleted:
+    - "&aDeleted {count} backups for {player}!"
+  no-permission:
+    - "&cYou don't have permission to use this command!"
+  invalid-usage:
+    # 0.0.7 added the version subcommand to the usage line.
+    - "&cUsage: /inv <player> <restore|show|givemissing|list|delete> <filename> OR /inv backup <all|player> OR /inv version"
+    # 0.0.6 and earlier.
+    - "&cUsage: /inv <player> <restore|show|givemissing|list|delete> <filename> OR /inv backup <all|player>"
+
+  # Added in 0.0.7. These shipped in German while the rest of the
+  # file was English - the very mix-up the language system fixes.
+  # Listing them here keeps them from being migrated into
+  # messages_en.yml as if an admin had translated them on purpose.
+  update-available:
+    - "&eUpdate verfügbar: &f{current} &7→ &a{latest}"
+  update-download:
+    - "&7Download: &b{url}"
+  update-current:
+    - "&7Installierte Version: &e{version}"
+  update-up-to-date:
+    - "&aPlugin ist auf dem neuesten Stand."
+  update-checking:
+    - "&7Suche nach Updates ..."
+  update-failed:
+    - "&cUpdate-Prüfung fehlgeschlagen. Details in der Server-Konsole."
+  update-disabled:
+    - "&7Update-Prüfung ist deaktiviert."

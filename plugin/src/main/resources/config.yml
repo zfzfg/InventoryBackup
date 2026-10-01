@@ -1,0 +1,58 @@
+# InventoryBackup Configuration
+
+# Language for all plugin and console messages: "en" (English) or "de" (German).
+# The texts themselves live in messages_<language>.yml next to this file - edit
+# them there, not here. Switch at runtime with /inv lang <en|de>, which rewrites
+# this setting and reloads the texts without a restart.
+# Missing keys in a translation fall back to the English text.
+language: "en"
+
+# How many days to keep inventory files before auto-deletion
+# Set to 0 to disable auto-deletion
+auto-delete-days: 30
+
+# Check interval for file cleanup (in hours)
+cleanup-interval-hours: 24
+
+# Save inventory on death
+save-on-death: true
+
+# Performance settings
+cache-cleanup-interval: 30 # seconds
+
+# A restore aimed at an offline player waits in pending-restores.yml until they
+# join. Entries older than this are discarded. Set to 0 to keep them forever.
+pending-restore-expiry-days: 30
+
+# Notification settings
+notify-on-backup: true
+notify-ops-only: true
+
+# Update check (Modrinth)
+update-check:
+  enabled: true               # master switch -- must stay switchable
+  check-on-startup: true      # fetch on server start
+  notify-admins-on-join: true # notice in chat when an admin joins
+  modrinth-project-id: "rpKY25cW"
+  contact: "zfzfg@sterra.online" # goes into the User-Agent
+  stable-only: true           # ignore pre-releases
+  startup-delay-ticks: 20     # 20 ticks = 1 second
+
+# Message texts live in messages_<language>.yml in this folder (see `language`
+# at the top of this file) - not here.
+#
+# Upgrading from 0.0.7 or earlier? Those versions kept the texts in a
+# `messages:` block in this file. On first start it is migrated automatically:
+# texts you customised are copied into your language file, texts still at their
+# shipped default give way to the new translations, and your old config is kept
+# as config.yml.pre-i18n.bak. The marker below records that this already ran -
+# removing it makes the migration run again.
+messages-migrated: true
+
+# On first start the plugin writes a `storage-version` key below this line.
+# Version 1 filed backups under the player's name, which orphaned them on a
+# rename; version 2 files them under the player's UUID. The switch happens
+# automatically and only ever moves folders - anything whose owner could not be
+# determined ends up in inventories/_unmigrated/ for you to look at, and nothing
+# is deleted. The key is deliberately not shipped with a value here: a default
+# would also apply to servers upgrading from 0.0.7 and skip their migration.
